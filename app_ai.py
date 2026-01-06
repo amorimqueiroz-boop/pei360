@@ -47,7 +47,7 @@ def consultar_ia(api_key, dados):
     try:
         genai.configure(api_key=api_key)
         # Usando o modelo Flash que é rápido e eficiente
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-pro')
         
         prompt = f"""
         Aja como um Especialista em Inclusão Escolar.
