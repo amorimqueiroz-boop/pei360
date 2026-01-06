@@ -2,393 +2,302 @@ import streamlit as st
 from datetime import date
 from io import BytesIO
 from docx import Document
-from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-# --- 1. CONFIGURAÇÃO E ESTILO (DESIGN SYSTEM ARCO) ---
+# --- 1. CONFIGURAÇÃO E DESIGN SYSTEM ARCO ---
 st.set_page_config(
     page_title="PEI 360 | Arco Educação",
     page_icon="🧩",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed" # Menu recolhido para parecer mais App
 )
 
+# CSS AVANÇADO (Visual de App Moderno)
 st.markdown("""
     <style>
-    /* Paleta de Cores Arco Educação & Acessibilidade */
+    /* VARIÁVEIS DE COR ARCO */
     :root {
-        --arco-blue: #004e92;       /* Azul Institucional */
-        --arco-orange: #ff7f00;     /* Laranja Destaque */
-        --bg-gray: #f8f9fa;         /* Fundo Suave */
-        --text-dark: #2c3e50;
+        --arco-blue: #004e92;
+        --arco-green: #28a745;
+        --bg-app: #f0f2f6;
+        --card-bg: #ffffff;
     }
     
-    .main {background-color: var(--bg-gray);}
+    .main {background-color: var(--bg-app);}
     
-    /* Tipografia */
-    h1, h2, h3 {color: var(--arco-blue); font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700;}
-    p {color: var(--text-dark); font-size: 1.1rem;}
-    
-    /* Cards Informativos (Home) */
-    .edu-card {
-        background-color: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        border-left: 6px solid var(--arco-blue);
-        margin-bottom: 20px;
-    }
-    .lei-card {
-        background-color: #e3f2fd; /* Azul bem claro */
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #bbdefb;
-        color: #0d47a1;
-        font-style: italic;
+    /* ESTILO DE CARDS (Para tirar cara de formulário) */
+    .app-card {
+        background-color: var(--card-bg);
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
+        border-left: 5px solid var(--arco-blue);
     }
     
-    /* Botões Premium */
+    /* TÍTULOS */
+    h1 {color: var(--arco-blue); font-weight: 800; letter-spacing: -1px;}
+    h2, h3 {color: #2c3e50; font-family: 'Helvetica Neue', sans-serif;}
+    
+    /* SLIDERS (Correção da cor vermelha para Azul) */
+    div.stSlider > div > div > div > div {
+        background-color: var(--arco-blue) !important;
+    }
+    div.stSlider > div > div > div > div > div {
+        color: var(--arco-blue) !important;
+    }
+    
+    /* BOTÕES */
     .stButton>button {
         background-color: var(--arco-blue);
         color: white;
-        border-radius: 8px;
-        font-weight: 600;
-        padding: 0.6rem 1.2rem;
+        border-radius: 12px;
+        height: 50px;
+        font-size: 16px;
+        font-weight: bold;
         border: none;
-        transition: all 0.3s ease;
+        width: 100%;
+        transition: 0.3s;
     }
     .stButton>button:hover {
-        background-color: #003366; /* Azul mais escuro no hover */
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        background-color: #003366;
+        transform: translateY(-2px);
     }
     
-    /* Ajustes de Sliders e Inputs */
-    .stSlider > div > div > div > div {background-color: var(--arco-orange);}
-    .stTextArea textarea {font-size: 1rem;}
+    /* INPUTS MAIS BONITOS */
+    .stTextInput>div>div>input {
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. MOTOR DE GERAÇÃO DO WORD (LÓGICA PEDAGÓGICA) ---
-def gerar_docx_especialista(dados):
+# --- 2. MOTOR DE GERAÇÃO DO WORD ---
+def gerar_docx_final(dados):
     doc = Document()
     
-    # Cabeçalho Institucional
-    titulo = doc.add_heading('PLANO DE ENSINO INDIVIDUALIZADO (PEI)', 0)
+    # Cabeçalho Limpo
+    titulo = doc.add_heading('PEI 360 - PLANO DE ENSINO INDIVIDUALIZADO', 0)
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    sub = doc.add_paragraph(f'Instituição: {dados["escola"]} | Ano Letivo: {date.today().year}')
-    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph(f'Unidade Escolar: {dados["escola"]} | Ano: {date.today().year}').alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph('_' * 70)
 
-    # 1. Identificação e Histórico
-    doc.add_heading('1. IDENTIFICAÇÃO E CONTEXTO', level=1)
+    # Conteúdo Estruturado
+    doc.add_heading('1. IDENTIFICAÇÃO', level=1)
+    doc.add_paragraph(f"Nome: {dados['nome']} | Série: {dados['serie']} | Turma: {dados['turma']}")
+    doc.add_paragraph(f"Nascimento: {str(dados['nasc']) if dados['nasc'] else '--'}")
     
-    tbl = doc.add_table(rows=1, cols=2)
-    tbl.autofit = False 
-    celulas = tbl.rows[0].cells
-    celulas[0].text = f"Estudante: {dados['nome']}\nNascimento: {str(dados['nasc']) if dados['nasc'] else '--'}"
-    celulas[1].text = f"Série/Ano: {dados['serie']}\nTurma/Turno: {dados['turma']}"
+    doc.add_heading('2. ESTUDO DE CASO', level=1)
     
-    doc.add_paragraph(f"\nDiagnóstico Clínico (CID): {dados['cid']}")
-    doc.add_paragraph(f"Equipe Multidisciplinar Externa: {', '.join(dados['equipe_externa']) if dados['equipe_externa'] else 'Não possui acompanhamento externo declarado.'}")
-    
-    doc.add_heading('Histórico Escolar Breve:', level=2)
-    doc.add_paragraph(dados['historico'] if dados['historico'] else "Sem observações de histórico.")
+    # Indicadores em Destaque
+    p_metrics = doc.add_paragraph()
+    p_metrics.add_run(f"Nível de Suporte: {dados['nivel_suporte']}").bold = True
+    doc.add_paragraph(f"Engajamento: {dados['nivel_engajamento']} | Autonomia: {dados['nivel_autonomia']}")
 
-    doc.add_heading('Relato da Família (Escuta Ativa):', level=2)
-    doc.add_paragraph(dados['familia'] if dados['familia'] else "Não houve registro de entrevista familiar.")
-
-    # 2. Perfil do Estudante (O Coração do PEI)
-    doc.add_heading('2. PERFIL DO ESTUDANTE (ESTUDO DE CASO)', level=1)
-    
-    # Indicadores Visuais em Texto
-    p_ind = doc.add_paragraph()
-    p_ind.add_run(f"Nível de Suporte Geral: {dados['nivel_suporte']}").bold = True
-    doc.add_paragraph(f"• Engajamento: {dados['nivel_engajamento']}")
-    doc.add_paragraph(f"• Autonomia (AVDs): {dados['nivel_autonomia']}")
-
-    doc.add_heading('Potencialidades e Hiperfocos (Alavancas):', level=2)
     if dados['hiperfoco']:
-        p_hip = doc.add_paragraph()
-        p_hip.add_run("Hiperfoco/Interesse Restrito: ").bold = True
-        p_hip.add_run(dados['hiperfoco'])
+        doc.add_paragraph(f"Hiperfoco (Interesse Potencializador): {dados['hiperfoco']}")
     
+    doc.add_heading('Potencialidades:', level=2)
     if dados['potencias']:
         for p in dados['potencias']: doc.add_paragraph(p, style='List Bullet')
-
-    doc.add_heading('Mapeamento de Barreiras:', level=2)
-    
-    if dados['b_sensorial']: 
-        p = doc.add_paragraph(); p.add_run("Barreiras Sensoriais e Físicas:").bold = True
-        for b in dados['b_sensorial']: doc.add_paragraph(b, style='List Bullet')
-    
-    if dados['b_cognitiva']: 
-        p = doc.add_paragraph(); p.add_run("Barreiras Cognitivas e de Aprendizagem:").bold = True
-        for b in dados['b_cognitiva']: doc.add_paragraph(b, style='List Bullet')
         
+    doc.add_heading('Barreiras Mapeadas:', level=2)
+    if dados['b_sensorial']: 
+        doc.add_paragraph("Sensoriais/Físicas:").bold = True
+        for b in dados['b_sensorial']: doc.add_paragraph(b, style='List Bullet')
+    if dados['b_cognitiva']: 
+        doc.add_paragraph("Cognitivas/Aprendizagem:").bold = True
+        for b in dados['b_cognitiva']: doc.add_paragraph(b, style='List Bullet')
     if dados['b_social']: 
-        p = doc.add_paragraph(); p.add_run("Barreiras Sociais e de Comunicação:").bold = True
+        doc.add_paragraph("Sociais/Comportamentais:").bold = True
         for b in dados['b_social']: doc.add_paragraph(b, style='List Bullet')
 
-    # 3. Plano de Intervenção
-    doc.add_heading('3. ORGANIZAÇÃO DO TRABALHO PEDAGÓGICO', level=1)
-    
-    doc.add_heading('Adaptações de Acesso (Como o aluno aprende):', level=2)
+    doc.add_heading('3. ESTRATÉGIAS PEDAGÓGICAS', level=1)
+    doc.add_heading('Adaptações de Acesso:', level=2)
     if dados['estrategias_acesso']:
         for e in dados['estrategias_acesso']: doc.add_paragraph(e, style='List Bullet')
-    else: doc.add_paragraph("Nenhuma adaptação de acesso necessária no momento.")
         
-    doc.add_heading('Adaptações Curriculares (O que o aluno aprende):', level=2)
+    doc.add_heading('Adaptações Curriculares:', level=2)
     if dados['estrategias_curriculo']:
         for e in dados['estrategias_curriculo']: doc.add_paragraph(e, style='List Bullet')
-    else: doc.add_paragraph("Segue o currículo padrão da série.")
 
-    doc.add_paragraph('\n\n___________________________________\nCoordenação Pedagógica')
-    doc.add_paragraph('\n___________________________________\nResponsável Legal / Família')
+    doc.add_paragraph('\n\n___________________________________\nGestão Pedagógica')
     
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
 
-# --- 3. DICIONÁRIO DE DADOS (SESSION STATE) ---
+# --- 3. SESSION STATE ---
 if 'dados' not in st.session_state:
     st.session_state.dados = {
         'nome': '', 'nasc': None, 'serie': '', 'turma': '', 'escola': '', 
-        'cid': '', 'equipe_externa': [], 
-        'historico': '', 'familia': '', # Campos Restaurados
-        'hiperfoco': '', # Campo Novo
-        'nivel_suporte': 'Nível 1: Leve (Apenas adaptações)',
-        'nivel_engajamento': 'Médio (Requer mediação)',
-        'nivel_autonomia': 'Com Supervisão Parcial',
+        'cid': '', 'equipe_externa': [], 'historico': '', 'familia': '', 'hiperfoco': '',
+        'nivel_suporte': 'Nível 1: Leve', 'nivel_engajamento': 'Médio', 'nivel_autonomia': 'Em desenvolvimento',
         'potencias': [], 'b_sensorial': [], 'b_cognitiva': [], 'b_social': [],
         'estrategias_acesso': [], 'estrategias_curriculo': []
     }
 
-# --- 4. INTERFACE DO USUÁRIO ---
+# --- 4. INTERFACE PRINCIPAL (DASHBOARD LAYOUT) ---
 
-# Sidebar
-with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Arco_Educa%C3%A7%C3%A3o_logo.png/640px-Arco_Educa%C3%A7%C3%A3o_logo.png", width=160)
-    st.markdown("### PEI 360°")
-    st.caption("Sistema de Gestão Inclusiva")
-    st.markdown("---")
-    st.success("✅ **Status:** Sistema Online")
-    st.info("Utilize as abas superiores para navegar entre a fundamentação legal e o preenchimento do plano.")
+# Cabeçalho Moderno (Sem Sidebar na Home para dar amplitude)
+c_logo, c_title = st.columns([1, 6])
+with c_logo:
+    st.markdown("# 🧩")
+with c_title:
+    st.title("PEI 360")
+    st.markdown("### Solução Integrada de Inclusão Escolar")
 
-# Título Principal
-st.title("Gestão de PEI e Inclusão Escolar")
+# Barra de Progresso Visual
+progresso = 0
+if st.session_state.dados['nome']: progresso += 25
+if st.session_state.dados['b_sensorial'] or st.session_state.dados['b_cognitiva']: progresso += 25
+if st.session_state.dados['estrategias_acesso']: progresso += 25
+if progresso == 75: progresso = 100
+st.progress(progresso)
 
-# Abas de Navegação (Fluxo Lógico)
-tab_home, tab_ident, tab_mapa, tab_plano, tab_export = st.tabs([
-    "🏠 Fundamentação & Lei", 
+# Navegação por Abas (Visual Limpo)
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🏠 Visão Geral", 
     "👤 Identificação", 
-    "🔍 Mapeamento (Estudo)", 
-    "🛠️ Estratégias", 
-    "🖨️ Finalizar Documento"
+    "🔍 Estudo de Caso", 
+    "🎯 Estratégias", 
+    "📄 Documento"
 ])
 
-# === ABA 1: HOME PAGE (EDUCATIVA & AUTORIDADE) ===
-with tab_home:
-    st.header("Por que o PEI é essencial?")
-    
-    col_a, col_b = st.columns(2)
-    
-    with col_a:
-        st.markdown("""
-        <div class="edu-card">
-        <h3>📘 O que é o PEI?</h3>
-        <p>O <b>Plano de Ensino Individualizado (PEI)</b> é o instrumento pedagógico que transforma o direito à educação em prática.</p>
-        <p>Ele substitui a lógica médica (focada na doença) pela <b>lógica pedagógica</b> (focada em remover barreiras).</p>
-        <p><b>Não é apenas burocracia:</b> É o planejamento estratégico da escola para garantir que o aluno aprenda.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col_b:
-        st.markdown("""
-        <div class="edu-card">
-        <h3>⚖️ Legislação Atualizada (2025)</h3>
-        <p>A conformidade deste sistema baseia-se em:</p>
-        <div class="lei-card">
-        <b>1. Decreto nº 12.773 (Dez/2025):</b><br>
-        "Art. 12. As instituições devem elaborar plano individualizado... independentemente de laudo médico."
-        </div>
-        <div style="margin-top: 10px;" class="lei-card">
-        <b>2. Lei Brasileira de Inclusão (LBI):</b><br>
-        Garante o desenho universal e adaptações razoáveis como direito, não favor.
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    st.info("👉 **Como usar:** Clique na aba **'Identificação'** acima para iniciar um novo Estudo de Caso.")
-
-# === ABA 2: IDENTIFICAÇÃO E HISTÓRICO ===
-with tab_ident:
-    st.subheader("1. Dados Cadastrais e Contexto")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        st.session_state.dados['nome'] = st.text_input("Nome Completo do Estudante", value=st.session_state.dados['nome'])
-        st.session_state.dados['nasc'] = st.date_input("Data de Nascimento")
-        st.session_state.dados['escola'] = st.text_input("Unidade Escolar (COC)", value=st.session_state.dados['escola'])
-    with c2:
-        st.session_state.dados['serie'] = st.selectbox("Série/Ano Escolar", ["Ed. Infantil", "Fund I (1º ao 5º)", "Fund II (6º ao 9º)", "Ensino Médio"])
-        st.session_state.dados['turma'] = st.text_input("Turma (Ex: 3º B)")
-        st.session_state.dados['cid'] = st.text_input("Diagnóstico Clínico (Se houver) ou Hipótese")
-
-    st.markdown("---")
-    st.subheader("2. Histórico e Família")
-    
-    col_hist1, col_hist2 = st.columns(2)
-    with col_hist1:
-        st.markdown("**Breve Histórico Escolar:**")
-        st.caption("O aluno frequentou outras escolas? Teve retenção? Como foi a adaptação anterior?")
-        st.session_state.dados['historico'] = st.text_area("Digite o histórico aqui...", height=100, key="hist_input")
-        
-    with col_hist2:
-        st.markdown("**Relato da Família (Escuta):**")
-        st.caption("Quais as expectativas da família? O que eles relatam que funciona em casa?")
-        st.session_state.dados['familia'] = st.text_area("Digite o relato da família aqui...", height=100, key="fam_input")
-
-    st.markdown("---")
-    st.markdown("**Rede de Apoio Externa**")
-    st.session_state.dados['equipe_externa'] = st.multiselect(
-        "Quais profissionais atendem o aluno fora da escola?",
-        ["Psicólogo", "Fonoaudiólogo", "Terapeuta Ocupacional", "Neuropediatra", "Psiquiatra Infantil", "Psicopedagogo"]
-    )
-
-# === ABA 3: MAPEAMENTO PEDAGÓGICO ===
-with tab_mapa:
+# === ABA 1: VISÃO GERAL (Pitch de Venda) ===
+with tab1:
     st.markdown("""
-    <div class="lei-card">
-    💡 <b>Conceito Importante:</b> No PEI, não listamos "sintomas". Listamos <b>Barreiras</b> (o que o ambiente impõe) e <b>Potências</b> (o que o aluno usa para superar).
+    <div class="app-card">
+        <h3>Bem-vindo ao Novo Padrão de Inclusão Arco</h3>
+        <p>O <b>PEI 360</b> transforma a exigência legal em estratégia pedagógica.</p>
+        <br>
+        <div style="display: flex; justify-content: space-between;">
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; width: 48%;">
+                <b>📘 O que é o PEI?</b><br>
+                É o planejamento que remove barreiras. Não foca no laudo médico, mas na <b>potencialidade do aluno</b> e na adaptação do ambiente escolar.
+            </div>
+            <div style="background: #fff3e0; padding: 15px; border-radius: 10px; width: 48%;">
+                <b>⚖️ Compliance Legal (2025)</b><br>
+                Atende integralmente o <b>Decreto nº 12.773/25</b> (Art. 12), garantindo o PEI independente de laudo clínico.
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    c_pot, c_bar = st.columns([1, 1])
 
-    with c_pot:
-        st.markdown("### 🌟 Potencialidades")
-        
-        # CAMPO DE HIPERFOCO SEPARADO
-        st.markdown("**Hiperfoco / Interesse Restrito:**")
-        st.caption("Tema de interesse intenso que serve como porta de entrada para o vínculo (Ex: Dinossauros, Trens, Mapas).")
-        st.session_state.dados['hiperfoco'] = st.text_input("Qual o hiperfoco do aluno?", placeholder="Ex: Minecraft, Astronomia...")
+# === ABA 2: IDENTIFICAÇÃO (Card Visual) ===
+with tab2:
+    st.markdown('<div class="app-card">', unsafe_allow_html=True)
+    st.subheader("Dados do Estudante")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.session_state.dados['nome'] = st.text_input("Nome Completo", value=st.session_state.dados['nome'])
+        st.session_state.dados['nasc'] = st.date_input("Data de Nascimento")
+        # Campo Genérico para todas as marcas Arco
+        st.session_state.dados['escola'] = st.text_input("Unidade Escolar", placeholder="Ex: Escola Santa Maria, Colégio X...", value=st.session_state.dados['escola'])
+    with c2:
+        st.session_state.dados['serie'] = st.selectbox("Série/Ano", ["Ed. Infantil", "Fund I", "Fund II", "Ensino Médio"])
+        st.session_state.dados['turma'] = st.text_input("Turma")
+        st.session_state.dados['cid'] = st.text_input("Diagnóstico/Hipótese (Opcional)")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("**Habilidades Gerais:**")
-        st.session_state.dados['potencias'] = st.multiselect("Selecione os pontos fortes:", 
-            ["Memória Visual", "Facilidade com Tecnologia", "Habilidade Artística/Desenho", 
-             "Boa Oralidade", "Raciocínio Lógico", "Habilidade Musical", "Desempenho Motor/Esportes", "Vínculo Afetivo Fácil"])
+    st.markdown('<div class="app-card">', unsafe_allow_html=True)
+    st.subheader("Contexto Familiar e Histórico")
+    col_h1, col_h2 = st.columns(2)
+    with col_h1:
+        st.markdown("**Histórico Escolar Prévio**")
+        st.session_state.dados['historico'] = st.text_area("Ex: Veio de outra escola? Repetiu ano?", height=80)
+    with col_h2:
+        st.markdown("**Escuta da Família**")
+        st.session_state.dados['familia'] = st.text_area("O que a família relata? O que funciona em casa?", height=80)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# === ABA 3: ESTUDO DE CASO (Mapeamento) ===
+with tab3:
+    st.markdown('<div class="app-card">', unsafe_allow_html=True)
+    col_pot, col_bar = st.columns([1, 1])
+
+    with col_pot:
+        st.subheader("🌟 Potencialidades")
+        st.info("O que engaja este aluno?")
+        st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco / Interesse Restrito", placeholder="Ex: Dinossauros, Mapas, Games...")
+        st.session_state.dados['potencias'] = st.multiselect("Habilidades Fortes:", 
+            ["Memória Visual", "Tecnologia", "Artes", "Oralidade", "Lógica", "Música", "Esportes", "Empatia"])
         
         st.markdown("---")
-        st.markdown("#### Indicadores de Desenvolvimento")
+        st.subheader("Indicadores")
+        # SLIDERS COM COR CORRIGIDA (AZUL)
         st.session_state.dados['nivel_engajamento'] = st.select_slider(
-            "Nível de Engajamento nas Aulas:",
-            options=["Baixo (Passivo/Alheio)", "Médio (Requer Mediação)", "Alto (Participativo)", "Oscilante"],
-            value="Médio (Requer Mediação)"
+            "Nível de Engajamento:", options=["Baixo", "Médio", "Alto", "Excelente"], value="Médio"
         )
         st.session_state.dados['nivel_autonomia'] = st.select_slider(
-            "Autonomia (Uso de banheiro, alimentação, materiais):",
-            options=["Dependente (Total)", "Com Supervisão Constante", "Com Supervisão Parcial", "Autônomo"],
-            value="Com Supervisão Parcial"
+            "Nível de Autonomia:", options=["Requer Apoio Total", "Apoio Parcial", "Autônomo"], value="Apoio Parcial"
         )
 
     with c_bar:
-        st.markdown("### 🚧 Barreiras de Acesso")
+        st.subheader("🚧 Barreiras (O que atrapalha?)")
         
-        with st.expander("1. Sensorial e Físico (Corpo e Ambiente)", expanded=True):
-            st.session_state.dados['b_sensorial'] = st.multiselect(
-                "Quais barreiras o ambiente impõe?",
-                ["Hipersensibilidade Auditiva (Barulho)", "Busca Sensorial (Toca em tudo)", 
-                 "Agitação Motora Excessiva", "Baixa Visão", "Baixa Audição", "Dificuldade Motora Fina (Escrita)"]
-            )
-        with st.expander("2. Cognitivo e Acadêmico (Processamento)"):
-            st.session_state.dados['b_cognitiva'] = st.multiselect(
-                "Quais barreiras o método impõe?",
-                ["Tempo de Atenção Curto", "Dificuldade de Abstração", "Não realiza cópia do quadro", 
-                 "Dificuldade de Leitura/Interpretação", "Rigidez Cognitiva (Não aceita errar)"]
-            )
-        with st.expander("3. Social e Comunicacional (Interação)"):
-            st.session_state.dados['b_social'] = st.multiselect(
-                "Quais barreiras a convivência impõe?",
-                ["Isolamento Social", "Comportamento Opositor", "Pouca Comunicação Verbal", 
-                 "Ecolalia (Repetição de falas)", "Dificuldade em entender regras sociais"]
-            )
+        with st.expander("Sensorial e Físico", expanded=True):
+            st.session_state.dados['b_sensorial'] = st.multiselect("Selecione:", 
+                ["Hipersensibilidade Auditiva", "Agitação Motora", "Baixa Visão", "Dificuldade Motora"])
+        with st.expander("Cognitivo e Acadêmico"):
+            st.session_state.dados['b_cognitiva'] = st.multiselect("Selecione:", 
+                ["Atenção Curta", "Não copia da lousa", "Dificuldade de Leitura", "Rigidez Mental"])
+        with st.expander("Social e Comunicacional"):
+            st.session_state.dados['b_social'] = st.multiselect("Selecione:", 
+                ["Isolamento", "Comportamento Opositor", "Pouca Fala", "Literalidade (não entende ironia)"])
             
-        st.markdown("#### Nível de Suporte Geral")
+        st.markdown("---")
+        st.markdown("**Nível de Suporte Geral**")
         st.session_state.dados['nivel_suporte'] = st.select_slider(
-            "Classificação de Necessidade de Apoio:",
-            options=["Nível 1: Leve (Adaptações pontuais)", "Nível 2: Moderado (Monitoria em sala)", "Nível 3: Elevado (Suporte Contínuo/AT)"],
-            value="Nível 1: Leve (Adaptações pontuais)"
+            "", options=["Nível 1 (Leve)", "Nível 2 (Moderado)", "Nível 3 (Elevado)"], value="Nível 1 (Leve)"
         )
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# === ABA 4: ESTRATÉGIAS (PLANO DE AÇÃO) ===
-with tab_plano:
-    st.subheader("Planejamento de Intervenções")
-    st.info("Aqui definimos COMO a escola vai se adaptar ao aluno, e não o contrário.")
+# === ABA 4: ESTRATÉGIAS (Inteligência) ===
+with tab4:
+    st.markdown('<div class="app-card">', unsafe_allow_html=True)
+    st.subheader("🎯 Plano de Intervenção")
     
-    # Sugestões Automáticas Baseadas nas Barreiras
-    sugestoes_acesso = []
-    if "Hipersensibilidade Auditiva (Barulho)" in st.session_state.dados['b_sensorial']: 
-        sugestoes_acesso.append("Uso de fones abafadores em momentos de crise")
-        sugestoes_acesso.append("Permitir saída da sala em picos de ruído")
-    if "Não realiza cópia do quadro" in st.session_state.dados['b_cognitiva']: 
-        sugestoes_acesso.append("Fornecer pauta impressa ou permitir foto da lousa")
-    if "Agitação Motora Excessiva" in st.session_state.dados['b_sensorial']:
-        sugestoes_acesso.append("Pausas ativas (permissão para dar uma volta)")
-
+    # Lógica de Sugestão
+    sugestoes = []
+    if "Hipersensibilidade Auditiva" in st.session_state.dados['b_sensorial']: sugestoes.append("Uso de abafadores de ruído")
+    if "Não copia da lousa" in st.session_state.dados['b_cognitiva']: sugestoes.append("Fornecer foto da lousa/material impresso")
+    
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("""
-        <div class="edu-card">
-        <b>Adaptações de Acesso</b><br>
-        <small>Mudanças no ambiente, material ou forma de comunicação. O conteúdo é o mesmo.</small>
-        </div>
-        """, unsafe_allow_html=True)
-        st.session_state.dados['estrategias_acesso'] = st.multiselect(
-            "Selecione as estratégias:", 
-            options=sugestoes_acesso + ["Tempo Estendido para provas", "Ledor e Escriba", "Material Ampliado", "Sentar próximo ao professor", "Uso de Tablet/Tecnologia"],
-            default=sugestoes_acesso
+        st.markdown("**Adaptações de Acesso**")
+        st.caption("Mudanças em COMO o aluno acessa a aula.")
+        st.session_state.dados['estrategias_acesso'] = st.multiselect("Estratégias:", 
+            options=sugestoes + ["Tempo Estendido", "Auxílio de Leitura (Ledor) e Escrita (Escriba)", "Material Ampliado", "Sentar na frente", "Tablet"],
+            default=sugestoes
         )
-        
     with c2:
-        st.markdown("""
-        <div class="edu-card">
-        <b>Adaptações Curriculares</b><br>
-        <small>Mudanças nos objetivos ou conteúdo. Usado quando o acesso não é suficiente.</small>
-        </div>
-        """, unsafe_allow_html=True)
-        st.session_state.dados['estrategias_curriculo'] = st.multiselect(
-            "Selecione as estratégias:", 
-            ["Redução do número de questões", "Priorização de conteúdo essencial", "Avaliação Oral", "Atividade prática em vez de escrita", "Currículo Funcional"]
-        )
+        st.markdown("**Adaptações Curriculares**")
+        st.caption("Mudanças no QUE o aluno aprende/avalia.")
+        st.session_state.dados['estrategias_curriculo'] = st.multiselect("Estratégias:", 
+            ["Redução de questões", "Avaliação Oral", "Foco no essencial", "Atividade prática", "Prova Adaptada"])
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# === ABA 5: FINALIZAR E EXPORTAR ===
-with tab_export:
-    st.header("🖨️ Emissão do Documento Oficial")
+# === ABA 5: DOCUMENTO ===
+with tab5:
+    st.markdown('<div class="app-card">', unsafe_allow_html=True)
+    st.subheader("🖨️ Documento Oficial")
     
     if not st.session_state.dados['nome']:
-        st.warning("⚠️ Por favor, preencha o **Nome do Estudante** na aba 'Identificação' antes de gerar o documento.")
+        st.warning("⚠️ Preencha o nome do aluno na aba 'Identificação'.")
     else:
-        col_d1, col_d2 = st.columns([2, 1])
-        
-        with col_d1:
-            st.success("✅ O PEI foi compilado com sucesso.")
-            st.markdown(f"""
-            **Resumo do Plano:**
-            * **Estudante:** {st.session_state.dados['nome']}
-            * **Hiperfoco:** {st.session_state.dados['hiperfoco'] if st.session_state.dados['hiperfoco'] else 'Não informado'}
-            * **Barreiras Mapeadas:** {len(st.session_state.dados['b_sensorial']) + len(st.session_state.dados['b_cognitiva']) + len(st.session_state.dados['b_social'])}
-            * **Estratégias Definidas:** {len(st.session_state.dados['estrategias_acesso']) + len(st.session_state.dados['estrategias_curriculo'])}
-            """)
-            
-        with col_d2:
-            st.markdown("### Baixar Arquivo")
-            doc_buffer = gerar_docx_especialista(st.session_state.dados)
-            
+        col_btn, col_info = st.columns([1, 2])
+        with col_btn:
+            st.write("")
+            st.write("")
+            doc_buffer = gerar_docx_final(st.session_state.dados)
             st.download_button(
-                label="📥 Download PEI (.docx)",
+                label="📥 BAIXAR PEI COMPLETO (.docx)",
                 data=doc_buffer,
-                file_name=f"PEI_{st.session_state.dados['nome'].strip().replace(' ', '_')}.docx",
+                file_name=f"PEI_{st.session_state.dados['nome'].strip()}.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-            st.caption("O arquivo gerado é editável no Word para inserção de logotipo e assinaturas.")
+        with col_info:
+            st.success(f"**Pronto!** O PEI de {st.session_state.dados['nome']} foi gerado seguindo as diretrizes do Grupo Arco e legislação vigente.")
+    st.markdown('</div>', unsafe_allow_html=True)
