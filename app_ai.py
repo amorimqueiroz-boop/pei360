@@ -41,13 +41,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÃO GEMINI AI (ATUALIZADA PARA GEMINI-PRO) ---
+# --- FUNÇÃO GEMINI AI (MODELO FLASH ATUALIZADO) ---
 def consultar_ia(api_key, dados):
     if not api_key: return None, "⚠️ Insira a API Key na barra lateral esquerda para ativar a IA."
     try:
         genai.configure(api_key=api_key)
-        # MODELO ATUALIZADO AQUI:
-        model = genai.GenerativeModel('gemini-pro')
+        # Usando o modelo Flash que é rápido e eficiente
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
         Aja como um Especialista em Inclusão Escolar.
