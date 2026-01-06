@@ -2,199 +2,269 @@ import streamlit as st
 from datetime import date
 from io import BytesIO
 from docx import Document
-from docx.shared import Pt, Inches, RGBColor
+from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-# --- CONFIGURAÇÃO VISUAL ARCO EDUCAÇÃO ---
+# --- CONFIGURAÇÃO VISUAL (Identidade Arco Educação) ---
 st.set_page_config(
     page_title="PEI 360 | Arco Educação",
     page_icon="🧩",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# CSS para identidade visual (Azul Arco e Laranja)
+# CSS Profissional
 st.markdown("""
     <style>
-    /* Cores Arco Educação */
-    :root {
-        --arco-blue: #165DFF;
-        --arco-orange: #FF7F00;
-        --bg-gray: #F4F6F8;
-    }
-    .main {background-color: var(--bg-gray);}
-    
-    /* Cabeçalhos */
-    h1, h2, h3 {color: #003366; font-family: 'Helvetica', sans-serif;}
-    
-    /* Botões personalizados */
-    .stButton>button {
-        background-color: #165DFF; 
-        color: white; 
-        border-radius: 8px;
-        border: none;
-        height: 3em;
-        font-weight: bold;
-    }
-    .stButton>button:hover {background-color: #0044CC;}
-    
-    /* Box de Destaque */
-    .highlight-box {
-        padding: 1.5rem;
-        background-color: white;
-        border-left: 5px solid #FF7F00;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-radius: 5px;
-        margin-bottom: 1rem;
-    }
+    :root {--arco-blue: #004e92; --arco-orange: #ff7f00; --bg-light: #f4f6f9;}
+    .main {background-color: var(--bg-light);}
+    h1, h2, h3 {color: var(--arco-blue); font-family: 'Helvetica Neue', sans-serif;}
+    .stButton>button {background-color: var(--arco-blue); color: white; border-radius: 6px; font-weight: 600;}
+    .stExpander {background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
+    .destaque-pedagogico {padding: 15px; background-color: #e3f2fd; border-left: 5px solid #004e92; border-radius: 4px; margin-bottom: 20px;}
     </style>
     """, unsafe_allow_html=True)
 
 # --- FUNÇÃO GERADORA DE WORD (.DOCX) ---
-def gerar_docx(nome, serie, potencias, barreiras, estrategias, data_hoje):
+def gerar_docx_completo(dados):
     doc = Document()
     
-    # Título
+    # Estilo do Título
     titulo = doc.add_heading('PLANO DE ENSINO INDIVIDUALIZADO (PEI)', 0)
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Subtítulo com Lei
-    sub = doc.add_paragraph(f'Base Legal: Decreto nº 12.773/2025 - PEI 360 Arco')
-    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph(f'Instituição: {dados["escola"]} | Ano Letivo: {date.today().year}').alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph('_' * 70)
 
-    # 1. Dados
-    doc.add_heading('1. DADOS DE IDENTIFICAÇÃO', level=1)
-    p = doc.add_paragraph()
-    p.add_run('Nome do Estudante: ').bold = True
-    p.add_run(nome)
-    p.add_run('\nSérie/Ano: ').bold = True
-    p.add_run(serie)
-    p.add_run('\nData de Elaboração: ').bold = True
-    p.add_run(data_hoje)
-
-    # 2. Perfil
-    doc.add_heading('2. ESTUDO DE CASO (SÍNTESE)', level=1)
+    # 1. Identificação
+    doc.add_heading('1. DADOS DE IDENTIFICAÇÃO E CONTEXTO', level=1)
+    tbl = doc.add_table(rows=1, cols=2)
+    tbl.autofit = False 
+    celulas = tbl.rows[0].cells
+    celulas[0].text = f"Nome: {dados['nome']}\nNascimento: {dados['nasc']}"
+    celulas[1].text = f"Série: {dados['serie']}\nNível de Suporte Estimado: {dados['nivel_suporte']}"
     
-    doc.add_heading('Potencialidades e Hiperfocos:', level=2)
-    if potencias:
-        for pot in potencias:
-            doc.add_paragraph(pot, style='List Bullet')
-    else:
-        doc.add_paragraph('Não foram identificadas potencialidades nesta triagem.')
+    doc.add_paragraph(f"\nLaudo/Hipótese Diagnóstica: {dados['cid']}")
+    doc.add_paragraph(f"Equipe Multidisciplinar Externa: {', '.join(dados['equipe_externa']) if dados['equipe_externa'] else 'Não possui.'}")
 
-    doc.add_heading('Barreiras de Aprendizagem:', level=2)
-    if barreiras:
-        for bar in barreiras:
-            doc.add_paragraph(bar, style='List Bullet')
-    else:
-        doc.add_paragraph('Nenhuma barreira específica reportada.')
-
-    # 3. Plano
-    doc.add_heading('3. PLANO DE AÇÃO PEDAGÓGICA', level=1)
-    p = doc.add_paragraph('Estratégias para eliminação de barreiras (Art. 12 do Decreto 12.773):')
-    if estrategias:
-        for est in estrategias:
-            doc.add_paragraph(est, style='List Bullet')
-    else:
-        doc.add_paragraph('Observação contínua necessária.')
-
-    # 4. Assinaturas
-    doc.add_paragraph('\n\n\n')
-    doc.add_paragraph('_' * 40)
-    doc.add_paragraph('Coordenação Pedagógica')
+    # 2. Perfil Pedagógico (Estudo de Caso)
+    doc.add_heading('2. PERFIL DO ESTUDANTE (ESTUDO DE CASO)', level=1)
     
-    # Salvar em memória
+    doc.add_heading('Potencialidades e Interesses (Alavancas):', level=2)
+    if dados['potencias']:
+        for p in dados['potencias']: doc.add_paragraph(p, style='List Bullet')
+    else: doc.add_paragraph("Não informadas.")
+
+    doc.add_heading('Barreiras Identificadas:', level=2)
+    doc.add_paragraph("Barreiras Sensoriais/Físicas:", style='Strong')
+    if dados['b_sensorial']: 
+        for b in dados['b_sensorial']: doc.add_paragraph(b, style='List Bullet')
+    
+    doc.add_paragraph("Barreiras Cognitivas/Aprendizagem:", style='Strong')
+    if dados['b_cognitiva']: 
+        for b in dados['b_cognitiva']: doc.add_paragraph(b, style='List Bullet')
+        
+    doc.add_paragraph("Barreiras Sociais/Comunicacionais:", style='Strong')
+    if dados['b_social']: 
+        for b in dados['b_social']: doc.add_paragraph(b, style='List Bullet')
+
+    # 3. Plano de Ação
+    doc.add_heading('3. ORGANIZAÇÃO DO TRABALHO PEDAGÓGICO', level=1)
+    
+    doc.add_heading('Adaptações de Acesso (Como ensinamos):', level=2)
+    if dados['estrategias_acesso']:
+        for e in dados['estrategias_acesso']: doc.add_paragraph(e, style='List Bullet')
+        
+    doc.add_heading('Adaptações Curriculares (O que ensinamos):', level=2)
+    if dados['estrategias_curriculo']:
+        for e in dados['estrategias_curriculo']: doc.add_paragraph(e, style='List Bullet')
+
+    # 4. Avaliação
+    doc.add_heading('4. SISTEMA DE AVALIAÇÃO', level=1)
+    doc.add_paragraph("A avaliação será processual, descritiva e focada na evolução individual do estudante em relação ao seu ponto de partida (Art. 24 LDB).")
+    
+    doc.add_paragraph('\n\n___________________________________\nAssinatura da Coordenação / Direção')
+    
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
 
-# --- CABEÇALHO DO APP ---
-col1, col2 = st.columns([1, 6])
-with col1:
-    st.markdown("## 🧩") # Aqui poderia ser o logo da Arco
-with col2:
-    st.title("PEI 360 | Solução de Inclusão")
-    st.markdown("**Powered by Arco Educação** | _Compliance_ Decreto 12.773/25")
+# --- SIDEBAR: ESTADO DO APP ---
+with st.sidebar:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Arco_Educa%C3%A7%C3%A3o_logo.png/640px-Arco_Educa%C3%A7%C3%A3o_logo.png", width=150) # Logo genérico placeholder
+    st.title("PEI 360°")
+    st.info("Ferramenta de elaboração de Plano de Ensino Individualizado em conformidade com o Decreto 12.773/2025.")
+    progresso = st.progress(0)
 
-# --- NAVEGAÇÃO ---
-tab_educ, tab_app, tab_legis = st.tabs(["📘 O que é o PEI?", "🚀 Gerador PEI 360", "⚖️ Legislação 2025"])
+# --- CABEÇALHO ---
+st.title("Gestão de PEI e Inclusão Escolar")
+st.markdown("Preencha as abas sequencialmente para gerar o documento oficial.")
 
-# --- ABA 1: EDUCATIVA ---
-with tab_educ:
-    st.markdown("""
-    <div class="highlight-box">
-    <h3>O que é o PEI?</h3>
-    <p>O <b>Plano de Ensino Individualizado (PEI)</b> é o documento norteador da inclusão escolar. 
-    Diferente de um laudo médico (que diz "o que o aluno tem"), o PEI diz <b>"como a escola deve agir"</b>.</p>
-    </div>
-    """, unsafe_allow_html=True)
+# --- ABAS DE NAVEGAÇÃO ---
+tab1, tab2, tab3, tab4 = st.tabs(["1. Aluno & Contexto", "2. Mapeamento Profundo", "3. Definição de Estratégias", "4. Documento Final"])
+
+# --- DICIONÁRIO DE DADOS (SESSION STATE) ---
+if 'dados' not in st.session_state:
+    st.session_state.dados = {
+        'nome': '', 'nasc': None, 'serie': '', 'escola': '', 'cid': '',
+        'equipe_externa': [], 'nivel_suporte': '',
+        'potencias': [], 'b_sensorial': [], 'b_cognitiva': [], 'b_social': [],
+        'estrategias_acesso': [], 'estrategias_curriculo': []
+    }
+
+# === ABA 1: IDENTIFICAÇÃO ===
+with tab1:
+    st.subheader("📝 Identificação e Contexto")
     
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.info("**Para que serve?**\n\nPlanejar adaptações curriculares, definir metas pedagógicas e registrar a evolução do aluno, protegendo a escola juridicamente e garantindo o direito de aprender.")
-    with col_b:
-        st.warning("**Composição do Documento**\n\n1. **Histórico:** O que o aluno já sabe.\n2. **Estudo de Caso:** Barreiras e Potências.\n3. **Metas:** Onde queremos chegar.\n4. **Estratégias:** Como vamos chegar lá.")
-
-# --- ABA 2: APLICAÇÃO (Gerador) ---
-with tab_app:
-    st.subheader("Mapeamento do Estudante")
-    
-    c1, c2 = st.columns(2)
-    nome = c1.text_input("Nome do Estudante")
-    serie = c2.selectbox("Série", ["Ed. Infantil", "Fund. I", "Fund. II", "Ensino Médio"])
+    col1, col2 = st.columns(2)
+    with col1:
+        st.session_state.dados['nome'] = st.text_input("Nome Completo do Estudante", value=st.session_state.dados['nome'])
+        st.session_state.dados['nasc'] = st.date_input("Data de Nascimento")
+        st.session_state.dados['escola'] = st.text_input("Unidade Escolar (COC)", value=st.session_state.dados['escola'])
+    with col2:
+        st.session_state.dados['serie'] = st.selectbox("Ano/Série Atual", ["Ed. Infantil", "Fund I (1º-5º)", "Fund II (6º-9º)", "Ensino Médio"])
+        st.session_state.dados['cid'] = st.text_input("Diagnóstico (CID) ou Hipótese (Se houver)")
+        st.session_state.dados['equipe_externa'] = st.multiselect("Apoio Externo (Rede de Proteção):", ["Psicólogo", "Fonoaudiólogo", "Terapeuta Ocupacional", "Neurologista", "Psiquiatra"])
 
     st.markdown("---")
+    st.subheader("Nível de Suporte (Classificação Pedagógica)")
+    st.markdown("""
+    *Baseado na necessidade de terceiros para realizar atividades escolares.*
+    """)
+    st.session_state.dados['nivel_suporte'] = st.select_slider(
+        "Selecione o nível de suporte necessário:",
+        options=["Nível 1: Leve (Apenas adaptações)", "Nível 2: Moderado (Monitoria parcial)", "Nível 3: Elevado (Suporte contínuo/AT)"]
+    )
+
+# === ABA 2: MAPEAMENTO (O RETORNO DOS CAMPOS DETALHADOS) ===
+with tab2:
+    st.markdown('<div class="destaque-pedagogico">💡 <b>O Estudo de Caso:</b> Não foque no que falta (déficit), mas em como o ambiente impacta o aluno.</div>', unsafe_allow_html=True)
     
-    # Seleção Otimizada
-    st.write("**1. Mapeamento de Potências (Alavancas de Aprendizagem)**")
-    potencias_list = ["Memória Visual", "Interesse por Tecnologia", "Habilidade Artística", "Boa Oralidade", "Raciocínio Lógico"]
-    potencias = st.multiselect("Selecione os pontos fortes:", potencias_list)
-
-    st.write("**2. Mapeamento de Barreiras (Foco na eliminação)**")
-    col_bar1, col_bar2 = st.columns(2)
-    with col_bar1:
-        barreiras_cog = st.multiselect("Barreiras Cognitivas/Atenção", ["Dificuldade de Foco", "Dificuldade de Abstração", "Lentidão na escrita"])
-    with col_bar2:
-        barreiras_soc = st.multiselect("Barreiras Sociais/Sensoriais", ["Hipersensibilidade Auditiva", "Dificuldade de Interação", "Comportamento Opositor"])
+    col_pot, col_bar = st.columns([1, 2])
     
-    barreiras = barreiras_cog + barreiras_soc
+    with col_pot:
+        st.subheader("🌟 Potencialidades")
+        st.caption("Alavancas para engajamento")
+        st.session_state.dados['potencias'] = st.multiselect(
+            "Selecione:",
+            ["Memória Visual", "Interesse em Tecnologia", "Habilidade Artística/Desenho", 
+             "Hiperfoco (Dinossauros, Trens, Games)", "Boa Oralidade", "Afetividade/Vínculo Fácil",
+             "Raciocínio Lógico-Matemático", "Habilidade Musical", "Esportes/Motor Grosso"]
+        )
 
-    # Botão de Ação
-    if st.button("Gerar Documento PEI 360"):
-        if not nome:
-            st.error("Preencha o nome do aluno.")
-        else:
-            # Lógica simples de recomendação
-            estrategias = []
-            if "Dificuldade de Foco" in barreiras: estrategias.append("Fragmentar tarefas em etapas curtas.")
-            if "Hipersensibilidade Auditiva" in barreiras: estrategias.append("Permitir uso de abafadores e antecipar ruídos.")
-            if "Lentidão na escrita" in barreiras: estrategias.append("Oferecer tempo estendido ou ledor/escriba.")
-            if not estrategias: estrategias.append("Aplicar Desenho Universal para Aprendizagem (DUA).")
-
-            # Gerar DOCX
-            arquivo_doc = gerar_docx(nome, serie, potencias, barreiras, estrategias, date.today().strftime('%d/%m/%Y'))
+    with col_bar:
+        st.subheader("🚧 Barreiras de Acesso (Mapeamento)")
+        
+        with st.expander("1. Sensorial e Físico (Corpo e Ambiente)"):
+            st.session_state.dados['b_sensorial'] = st.multiselect(
+                "Desafios observados:",
+                ["Hipersensibilidade Auditiva (tapa ouvidos)", "Busca sensorial (toca em tudo)", 
+                 "Agitação motora / Não para sentado", "Dificuldade na coordenação motora fina (lápis)",
+                 "Baixa visão ou audição", "Seletividade alimentar (impacta lanche)"]
+            )
             
-            st.success("Documento gerado com sucesso!")
-            st.download_button(
-                label="📥 Baixar PEI em Word (.docx)",
-                data=arquivo_doc,
-                file_name=f"PEI_360_{nome}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        with st.expander("2. Cognitivo e Acadêmico (Processamento)"):
+            st.session_state.dados['b_cognitiva'] = st.multiselect(
+                "Desafios observados:",
+                ["Tempo de atenção curto", "Dificuldade de abstração/metáforas", 
+                 "Não realiza cópia do quadro", "Dificuldade na alfabetização/leitura",
+                 "Dificuldade em organização/função executiva", "Rigidez cognitiva (não aceita erros)"]
+            )
+            
+        with st.expander("3. Social e Comunicacional (Interação)"):
+            st.session_state.dados['b_social'] = st.multiselect(
+                "Desafios observados:",
+                ["Não mantém contato visual", "Isolamento no recreio", 
+                 "Comportamento opositor/desafiador", "Dificuldade em entender regras sociais",
+                 "Comunicação não-verbal / Pouca fala", "Ecolalia (repete o que ouve)"]
             )
 
-# --- ABA 3: LEGISLAÇÃO ---
-with tab_legis:
+# === ABA 3: ESTRATÉGIAS E METAS ===
+with tab3:
+    st.subheader("🛠️ Plano de Intervenção")
+    st.write("O sistema sugere estratégias baseadas nas barreiras selecionadas na aba anterior.")
+
+    # LÓGICA INTELIGENTE DE SUGESTÃO
+    sugestoes_acesso = []
+    sugestoes_curriculo = []
+
+    # Barreiras Sensoriais -> Acesso
+    if "Hipersensibilidade Auditiva (tapa ouvidos)" in st.session_state.dados['b_sensorial']:
+        sugestoes_acesso.append("Permitir uso de fones abafadores em momentos de ruído.")
+        sugestoes_acesso.append("Antecipar verbalmente sinais sonoros (sinal do recreio).")
+    if "Agitação motora / Não para sentado" in st.session_state.dados['b_sensorial']:
+        sugestoes_acesso.append("Pausas ativas: permitir saídas rápidas para regulação.")
+        sugestoes_acesso.append("Oferecer assento dinâmico ou permissão para ficar de pé.")
+
+    # Barreiras Cognitivas -> Currículo e Acesso
+    if "Não realiza cópia do quadro" in st.session_state.dados['b_cognitiva']:
+        sugestoes_acesso.append("Fornecer pauta impressa do conteúdo (evitar cópia longa).")
+        sugestoes_acesso.append("Permitir foto da lousa ou uso de escriba.")
+    if "Tempo de atenção curto" in st.session_state.dados['b_cognitiva']:
+        sugestoes_curriculo.append("Fragmentar atividades longas em etapas curtas (Passo a passo).")
+        sugestoes_curriculo.append("Utilizar checklists visuais de conclusão de tarefa.")
+
+    # Barreiras Sociais
+    if "Comportamento opositor/desafiador" in st.session_state.dados['b_social']:
+        sugestoes_acesso.append("Reforço positivo imediato para comportamentos adequados.")
+        sugestoes_curriculo.append("Adaptação de provas: ambiente separado se necessário.")
+
+    # Interface de Seleção
+    col_est1, col_est2 = st.columns(2)
+    with col_est1:
+        st.markdown("**Adaptações de Acesso** (Como o aluno acessa a aula)")
+        st.session_state.dados['estrategias_acesso'] = st.multiselect(
+            "Selecione as aplicáveis:", 
+            options=sugestoes_acesso + ["Uso de Tablet/Tecnologia", "Mobiliário Adaptado", "Material Ampliado", "Ledor/Escriba"],
+            default=sugestoes_acesso
+        )
+        st.text_area("Outras adaptações de acesso:", key="outras_acesso")
+
+    with col_est2:
+        st.markdown("**Adaptações Curriculares** (Mudanças no conteúdo/avaliação)")
+        st.session_state.dados['estrategias_curriculo'] = st.multiselect(
+            "Selecione as aplicáveis:", 
+            options=sugestoes_curriculo + ["Redução do número de questões", "Conteúdo Prioritário (Foco no essencial)", "Avaliação Oral", "Tempo estendido (50% a mais)"],
+            default=sugestoes_curriculo
+        )
+        st.text_area("Outras adaptações curriculares:", key="outras_curriculo")
+
+# === ABA 4: GERAR DOCUMENTO ===
+with tab4:
+    st.subheader("🖨️ Finalização e Exportação")
+    
+    if not st.session_state.dados['nome']:
+        st.warning("⚠️ Preencha o Nome do Aluno na Aba 1 antes de gerar.")
+    else:
+        st.success("Tudo pronto! O sistema compilou os dados do Estudo de Caso e elaborou o PEI.")
+        
+        # Botão de Download
+        doc_buffer = gerar_docx_completo(st.session_state.dados)
+        
+        col_d1, col_d2 = st.columns([2,1])
+        with col_d1:
+             st.markdown(f"""
+             **Resumo do Documento:**
+             * **Aluno:** {st.session_state.dados['nome']}
+             * **Barreiras Mapeadas:** {len(st.session_state.dados['b_sensorial']) + len(st.session_state.dados['b_cognitiva'])}
+             * **Estratégias Definidas:** {len(st.session_state.dados['estrategias_acesso']) + len(st.session_state.dados['estrategias_curriculo'])}
+             """)
+        with col_d2:
+            st.download_button(
+                label="📥 Baixar PEI em Word (.docx)",
+                data=doc_buffer,
+                file_name=f"PEI_{st.session_state.dados['nome'].replace(' ', '_')}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+            st.caption("Formato editável para ajustes finais da coordenação.")
+
+    # Contexto Legal no Rodapé
+    st.markdown("---")
     st.markdown("""
-    ### 🏛️ Contexto Legal: Decreto nº 12.773 (Dez/2025)
-    
-    Este decreto alterou significativamente a Política Nacional de Educação Especial.
-    
-    **Principais Mudanças para as Escolas:**
-    * **Art. 12:** Torna obrigatória a realização de documento individualizado de natureza pedagógica (PEI/PAEE).
-    * **Independência do Laudo:** O § 2º reforça que o suporte escolar **independe** de laudo médico, devendo basear-se no Estudo de Caso pedagógico.
-    * **Financiamento:** O Art. 19-A assegura recursos do FUNDEB para ações de inclusão nas instituições parceiras.
-    
-    > *O PEI 360 foi desenhado para garantir que sua escola esteja 100% em conformidade com o Artigo 12 deste novo decreto.*
-    """)
+    <div style='text-align: center; color: grey; font-size: 0.8em;'>
+    <b>Base Legal:</b> O Plano de Ensino Individualizado (PEI) é direito assegurado pelo Decreto nº 12.773/2025 
+    e pela Lei Brasileira de Inclusão (Lei nº 13.146/2015).<br>
+    Este documento substitui a necessidade de laudo médico para fins de adaptação escolar.
+    </div>
+    """, unsafe_allow_html=True)
 
