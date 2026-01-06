@@ -286,4 +286,4 @@ with tab6:
             file_name=f"PEI_{st.session_state.dados['nome'].strip()}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-    st.markdown("</div>", unsafe_allow_html
+    st.markdown("</div>", unsafe_allow_html=True)
