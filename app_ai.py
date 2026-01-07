@@ -11,16 +11,26 @@ import base64
 import os
 import re
 
+# --- FUNÇÃO PARA ENCONTRAR LOGO (Necessária antes da config da página) ---
+def encontrar_arquivo_logo():
+    possiveis_nomes = ["360.png", "360.jpg", "logo.png", "logo.jpg"]
+    for nome in possiveis_nomes:
+        if os.path.exists(nome): return nome
+    return None
+
+# Define o ícone da aba (Favicon) usando a própria logo se existir
+arquivo_logo_path = encontrar_arquivo_logo()
+favicon = arquivo_logo_path if arquivo_logo_path else "📘"
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="PEI 360º | Sistema Inclusivo",
-    page_icon="💠",
+    page_icon=favicon, # Ícone personalizado na aba do navegador
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL (CSS BLINDADO) ---
-# Importante: O CSS está separado para não causar erros de renderização
+# --- ESTILO VISUAL (CSS BLINDADO & HARMONIZADO) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -30,43 +40,31 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2D3748; }
     :root { --brand-primary: #004E92; --bg-light: #F7FAFC; }
     
-    /* 2. ABAS (PILL NAVIGATION REFINADA) */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px; background-color: transparent; padding: 10px 0;
-    }
+    /* 2. ABAS (PILL NAVIGATION) */
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; padding: 10px 0; }
     .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: #FFFFFF;
-        border-radius: 30px; /* Mais arredondado */
-        border: 1px solid #CBD5E0;
-        color: #4A5568;
-        padding: 0 20px;
-        font-weight: 700;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
+        height: 45px; background-color: #FFFFFF; border-radius: 30px;
+        border: 1px solid #CBD5E0; color: #4A5568; padding: 0 20px;
+        font-weight: 700; font-size: 0.95rem; transition: all 0.3s ease;
     }
     .stTabs [aria-selected="true"] {
-        background-color: var(--brand-primary) !important;
-        color: white !important;
-        border-color: var(--brand-primary) !important;
-        box-shadow: 0 4px 10px rgba(0, 78, 146, 0.3);
+        background-color: var(--brand-primary) !important; color: white !important;
+        border-color: var(--brand-primary) !important; box-shadow: 0 4px 10px rgba(0, 78, 146, 0.3);
     }
 
-    /* 3. INPUTS & CONTROLES (SEM VERMELHO) */
+    /* 3. INPUTS & CONTROLES */
     .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         border-radius: 12px !important; border: 1px solid #CBD5E0 !important;
     }
     .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: var(--brand-primary) !important;
-        box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
+        border-color: var(--brand-primary) !important; box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
     }
-    /* Tags do Multiselect */
     span[data-baseweb="tag"] {
         background-color: #EBF8FF !important; border: 1px solid #90CDF4 !important;
     }
     span[data-baseweb="tag"] span { color: #004E92 !important; }
 
-    /* 4. CARDS (ICON BUBBLE) */
+    /* 4. CARDS (ESTILO UNIFICADO) */
     .feature-card {
         background: white; padding: 25px; border-radius: 20px;
         border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
@@ -83,36 +81,24 @@ st.markdown("""
     .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; }
     .feature-card p { font-size: 0.95rem; color: #718096; line-height: 1.6; margin: 0; }
 
-    /* 5. BOTÕES (AZUL FORÇADO) */
+    /* 5. BOTÕES */
     .stButton > button {
         background-color: var(--brand-primary) !important; color: white !important;
         border-radius: 12px !important; border: none !important; font-weight: 700 !important;
         height: 3.2em !important; transition: 0.3s !important;
     }
-    .stButton > button:hover {
-        background-color: #003a6e !important; transform: scale(1.02) !important;
-    }
-    /* Botão Secundário */
+    .stButton > button:hover { background-color: #003a6e !important; transform: scale(1.02) !important; }
     div[data-testid="column"] .stButton button[kind="secondary"] {
         background-color: transparent !important; color: var(--brand-primary) !important;
         border: 2px solid var(--brand-primary) !important;
     }
 
-    /* 6. CORREÇÃO SLIDER (Barra nativa limpa) */
-    /* Removemos o CSS agressivo que pintava tudo de azul */
-    
-    /* 7. UPLOAD */
+    /* 6. UPLOAD */
     div[data-testid="stFileUploader"] section { background-color: #F8FAFC; border: 1px dashed #A0AEC0; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- FUNÇÕES UTILITÁRIAS ---
-def encontrar_arquivo_logo():
-    possiveis_nomes = ["360.png", "360.jpg", "logo.png", "logo.jpg"]
-    for nome in possiveis_nomes:
-        if os.path.exists(nome): return nome
-    return None
-
 def get_base64_image(image_path):
     if not image_path: return ""
     with open(image_path, "rb") as img_file:
@@ -240,7 +226,6 @@ if 'dados' not in st.session_state:
         'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [],
         'ia_sugestao': ''
     }
-# Patch de segurança
 for k in ['estrategias_ensino', 'estrategias_avaliacao', 'rede_apoio']:
     if k not in st.session_state.dados: st.session_state.dados[k] = []
 if 'nasc' not in st.session_state.dados: st.session_state.dados['nasc'] = None
@@ -253,29 +238,25 @@ with st.sidebar:
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']; st.success("✅ Chave Segura")
     else: api_key = st.text_input("Chave API:", type="password")
-    st.markdown("---"); st.info("Versão 18.0 | Platinum Stable")
+    st.markdown("---"); st.info("Versão 19.0 | Platinum Final")
 
-# --- CABEÇALHO (HTML PURO / SEM ERROS) ---
+# --- CABEÇALHO (HARMONIZADO & LOGO MAIOR) ---
 logo = encontrar_arquivo_logo()
 header_html = ""
 if logo:
     mime = "image/png" if logo.lower().endswith("png") else "image/jpeg"
     b64 = get_base64_image(logo)
-    # Lógica simples de concatenação de string para evitar erros de CSS
+    # Header agora usa o mesmo estilo visual dos cards (feature-card) para harmonia
     header_html = f"""
-    <div style="padding: 20px; background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%); border-radius: 16px; border-left: 8px solid #004E92; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; align-items: center; gap: 20px;">
-        <img src="data:{mime};base64,{b64}" style="max-height: 80px; width: auto;">
-        <div style="border-left: 2px solid #CBD5E0; padding-left: 20px;">
-            <p style="margin: 0; color: #4A5568; font-weight: 600; font-size: 1.1rem;">Planejamento Educacional Individualizado</p>
+    <div style="padding: 25px; background: white; border-radius: 20px; border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 30px; display: flex; align-items: center; gap: 25px;">
+        <img src="data:{mime};base64,{b64}" style="max-height: 105px; width: auto;"> 
+        <div style="border-left: 2px solid #E2E8F0; padding-left: 25px;">
+            <p style="margin: 0; color: #004E92; font-weight: 700; font-size: 1.2rem;">Planejamento Educacional Individualizado</p>
         </div>
     </div>
     """
 else:
-    header_html = """
-    <div style="padding: 20px; background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%); border-radius: 16px; border-left: 8px solid #004E92; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; align-items: center; gap: 20px;">
-        <h1 style="color: #004E92; margin: 0;">PEI 360º</h1>
-    </div>
-    """
+    header_html = '<div style="padding: 25px; background: white; border-radius: 20px; border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 30px;"><h1 style="color: #004E92; margin: 0;">PEI 360º</h1></div>'
 st.markdown(header_html, unsafe_allow_html=True)
 
 # ABAS
