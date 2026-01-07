@@ -11,15 +11,22 @@ import base64
 import os
 import re
 
+# --- FUNÇÃO PARA DEFINIR O ÍCONE DA ABA (FAVICON) ---
+def get_favicon():
+    # Prioridade para o ícone específico, depois a logo, depois um emoji
+    if os.path.exists("iconeaba.png"): return "iconeaba.png"
+    if os.path.exists("360.png"): return "360.png"
+    return "📘"
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="PEI 360º | Sistema Inclusivo",
-    page_icon="💠",
+    page_icon=get_favicon(),
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL BLINDADO (CSS ISOLADO) ---
+# --- ESTILO VISUAL 100% RESPONSIVO E UNIFICADO ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -27,66 +34,96 @@ st.markdown("""
     <style>
     /* 1. GLOBAL */
     html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2D3748; }
-    :root { --brand-primary: #004E92; --bg-light: #F7FAFC; }
+    :root { --brand-primary: #004E92; --bg-light: #F7FAFC; --card-shadow: 0 4px 6px rgba(0,0,0,0.02); }
     
-    /* 2. ABAS (PILL NAVIGATION) */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px; background-color: transparent; padding: 10px 0;
+    /* 2. HEADER RESPONSIVO */
+    .header-container {
+        padding: 20px;
+        background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%);
+        border-radius: 16px;
+        border-left: 8px solid var(--brand-primary);
+        box-shadow: var(--card-shadow);
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 25px;
     }
+    
+    /* Ajuste Mobile para o Header */
+    @media (max-width: 768px) {
+        .header-container {
+            flex-direction: column;
+            text-align: center;
+            padding: 15px;
+            gap: 15px;
+        }
+        .header-logo {
+            margin-right: 0 !important;
+            margin-bottom: 10px;
+        }
+        .header-text {
+            border-left: none !important;
+            padding-left: 0 !important;
+            border-top: 1px solid #CBD5E0;
+            padding-top: 10px;
+            width: 100%;
+        }
+    }
+
+    /* 3. ABAS (PILL DESIGN) */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: transparent; padding: 10px 0; flex-wrap: wrap; }
     .stTabs [data-baseweb="tab"] {
         height: 45px; background-color: #FFFFFF; border-radius: 30px;
         border: 1px solid #CBD5E0; color: #4A5568; padding: 0 20px;
-        font-weight: 700; font-size: 0.95rem; transition: all 0.3s ease;
+        font-weight: 700; font-size: 0.9rem; transition: all 0.3s ease;
+        flex-grow: 1; /* Ocupa espaço no mobile */
+        justify-content: center;
     }
     .stTabs [aria-selected="true"] {
         background-color: var(--brand-primary) !important; color: white !important;
         border-color: var(--brand-primary) !important; box-shadow: 0 4px 10px rgba(0, 78, 146, 0.3);
     }
 
-    /* 3. INPUTS & CONTROLES (SEM VERMELHO) */
-    .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
-        border-radius: 12px !important; border: 1px solid #CBD5E0 !important;
-    }
-    .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: var(--brand-primary) !important; box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
-    }
-    span[data-baseweb="tag"] {
-        background-color: #EBF8FF !important; border: 1px solid #90CDF4 !important;
-    }
-    span[data-baseweb="tag"] span { color: #004E92 !important; }
-
-    /* 4. CARDS (ICON BUBBLE) */
+    /* 4. CARDS UNIFICADOS (ICON BUBBLE) */
     .feature-card {
         background: white; padding: 25px; border-radius: 20px;
-        border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        border: 1px solid #EDF2F7; box-shadow: var(--card-shadow);
         height: 100%; transition: all 0.3s ease;
+        display: flex; flex-direction: column; align-items: flex-start;
     }
     .feature-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); }
     
     .icon-box {
         width: 45px; height: 45px; background: #E3F2FD; border-radius: 12px;
         display: flex; align-items: center; justify-content: center; margin-bottom: 15px;
+        flex-shrink: 0;
     }
     .icon-box i { font-size: 22px; color: var(--brand-primary); }
     
-    .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; }
+    .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; line-height: 1.3; }
     .feature-card p { font-size: 0.95rem; color: #718096; line-height: 1.6; margin: 0; }
 
-    /* 5. BOTÕES (AZUL FORÇADO) */
+    /* 5. INPUTS & BOTÕES */
+    .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+        border-radius: 12px !important; border: 1px solid #CBD5E0 !important;
+    }
+    .stTextInput input:focus, .stTextArea textarea:focus {
+        border-color: var(--brand-primary) !important; box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
+    }
+    
     .stButton > button {
         background-color: var(--brand-primary) !important; color: white !important;
         border-radius: 12px !important; border: none !important; font-weight: 700 !important;
-        height: 3.2em !important; transition: 0.3s !important;
-    }
-    .stButton > button:hover {
-        background-color: #003a6e !important; transform: scale(1.02) !important;
+        height: 3.5em !important; width: 100%; transition: 0.3s !important;
     }
     div[data-testid="column"] .stButton button[kind="secondary"] {
         background-color: transparent !important; color: var(--brand-primary) !important;
         border: 2px solid var(--brand-primary) !important;
     }
-
-    /* 6. UPLOAD */
+    span[data-baseweb="tag"] { background-color: #EBF8FF !important; border: 1px solid #90CDF4 !important; }
+    span[data-baseweb="tag"] span { color: #004E92 !important; }
+    
+    /* Upload */
     div[data-testid="stFileUploader"] section { background-color: #F8FAFC; border: 1px dashed #A0AEC0; }
     </style>
     """, unsafe_allow_html=True)
@@ -148,7 +185,7 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
         Estratégias: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
         
-        GERE UM PARECER TÉCNICO (Texto Limpo):
+        GERE UM PARECER TÉCNICO (Texto Limpo e Objetivo):
         1. CONEXÃO NEURAL: Uso do Hiperfoco.
         2. FOCO BNCC ({foco_bncc}): 1 objetivo adaptado.
         3. AJUSTE FINO: Validação das estratégias.
@@ -236,7 +273,7 @@ with st.sidebar:
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']; st.success("✅ Chave Segura")
     else: api_key = st.text_input("Chave API:", type="password")
-    st.markdown("---"); st.info("Versão 19.0 | Unified Design")
+    st.markdown("---"); st.info("Versão 20.0 | Golden Edition")
 
 # --- CABEÇALHO ---
 logo = encontrar_arquivo_logo()
@@ -244,9 +281,9 @@ if logo:
     mime = "image/png" if logo.lower().endswith("png") else "image/jpeg"
     b64 = get_base64_image(logo)
     header_html = f"""
-    <div style="padding: 25px; background: white; border-radius: 20px; border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 30px; display: flex; align-items: center; gap: 25px;">
-        <img src="data:{mime};base64,{b64}" style="max-height: 105px; width: auto;"> 
-        <div style="border-left: 2px solid #E2E8F0; padding-left: 25px;">
+    <div class="header-container">
+        <img src="data:{mime};base64,{b64}" class="header-logo" style="max-height: 105px; width: auto;"> 
+        <div class="header-text" style="border-left: 2px solid #E2E8F0; padding-left: 25px;">
             <p style="margin: 0; color: #004E92; font-weight: 700; font-size: 1.2rem;">Planejamento Educacional Individualizado</p>
         </div>
     </div>
@@ -263,6 +300,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 with tab1:
     st.markdown("### <i class='ri-dashboard-line'></i> Ecossistema de Inclusão", unsafe_allow_html=True)
     st.write("")
+    
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("""
@@ -299,7 +337,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-# 2. ESTUDANTE (COM TÍTULO UNIFICADO)
+# 2. ESTUDANTE
 with tab2:
     st.markdown("### <i class='ri-user-3-line'></i> Dossiê do Estudante", unsafe_allow_html=True)
     st.info("Preencha os dados de identificação e contexto.")
@@ -356,41 +394,42 @@ with tab3:
         st.write("Nível de Suporte:")
         st.session_state.dados['sup_social'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_soc")
 
-# 4. PLANO DE AÇÃO
+# 4. PLANO DE AÇÃO (ATUALIZADO PARA MODELO NOVO)
 with tab4:
     st.markdown("### <i class='ri-checkbox-circle-line'></i> Definição de Estratégias", unsafe_allow_html=True)
     col_a, col_b = st.columns(2)
+    
     with col_a:
         st.markdown("""
-        <div class="feature-card" style="padding: 15px; border-left: 4px solid #004E92;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <i class="ri-layout-masonry-line" style="font-size:1.2rem; color:#004E92;"></i>
-                <h4 style="margin:0; font-size:1rem;">1. Acesso & Rotina</h4>
-            </div>
+        <div class="feature-card">
+            <div class="icon-box"><i class="ri-layout-masonry-line"></i></div>
+            <h4>1. Acesso & Rotina</h4>
+            <p>Recursos para garantir que o aluno "esteja" na aula com qualidade.</p>
         </div>
         """, unsafe_allow_html=True)
+        st.write("")
         st.session_state.dados['estrategias_acesso'] = st.multiselect("Recursos:", ["Tempo estendido (+25%)", "Apoio à Leitura e Escrita", "Material Ampliado", "Tablet", "Sala Silenciosa", "Pausas"], placeholder="Selecione...")
 
     with col_b:
         st.markdown("""
-        <div class="feature-card" style="padding: 15px; border-left: 4px solid #004E92;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <i class="ri-pencil-ruler-2-line" style="font-size:1.2rem; color:#004E92;"></i>
-                <h4 style="margin:0; font-size:1rem;">2. Metodologia</h4>
-            </div>
+        <div class="feature-card">
+            <div class="icon-box"><i class="ri-pencil-ruler-2-line"></i></div>
+            <h4>2. Metodologia</h4>
+            <p>Como o professor deve ensinar o conteúdo.</p>
         </div>
         """, unsafe_allow_html=True)
+        st.write("")
         st.session_state.dados['estrategias_ensino'] = st.multiselect("Estratégias:", ["Fragmentação de Tarefas", "Pistas Visuais", "Mapa Mental", "Redução de Volume", "Multisensorial"], placeholder="Selecione...")
 
     st.markdown("---")
     st.markdown("""
-    <div class="feature-card" style="padding: 15px; border-left: 4px solid #004E92;">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <i class="ri-file-list-3-line" style="font-size:1.2rem; color:#004E92;"></i>
-            <h4 style="margin:0; font-size:1rem;">3. Avaliação</h4>
-        </div>
+    <div class="feature-card">
+        <div class="icon-box"><i class="ri-file-list-3-line"></i></div>
+        <h4>3. Avaliação</h4>
+        <p>Como o aluno pode demonstrar o que aprendeu.</p>
     </div>
     """, unsafe_allow_html=True)
+    st.write("")
     st.session_state.dados['estrategias_avaliacao'] = st.multiselect("Avaliação:", ["Prova Oral", "Sem Distratores", "Consulta Roteiro", "Trabalho/Projeto", "Enunciados Curtos"], placeholder="Selecione...")
 
 # 5. ASSISTENTE DE IA
@@ -404,7 +443,7 @@ with tab5:
         st.caption(f"Contexto: {status}")
         
         if st.button("✨ Gerar Parecer do Especialista", type="primary"):
-            if not st.session_state.dados['nome']: st.warning("Preencha o nome.")
+            if not st.session_state.dados['nome']: st.warning("Preencha o nome do estudante.")
             else:
                 with st.spinner("Analisando BNCC e Neurociência..."):
                     res, err = consultar_ia(api_key, st.session_state.dados, st.session_state.pdf_text)
