@@ -11,26 +11,15 @@ import base64
 import os
 import re
 
-# --- FUNÇÃO PARA ENCONTRAR LOGO (Necessária antes da config da página) ---
-def encontrar_arquivo_logo():
-    possiveis_nomes = ["360.png", "360.jpg", "logo.png", "logo.jpg"]
-    for nome in possiveis_nomes:
-        if os.path.exists(nome): return nome
-    return None
-
-# Define o ícone da aba (Favicon) usando a própria logo se existir
-arquivo_logo_path = encontrar_arquivo_logo()
-favicon = arquivo_logo_path if arquivo_logo_path else "📘"
-
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="PEI 360º | Sistema Inclusivo",
-    page_icon=favicon, # Ícone personalizado na aba do navegador
+    page_icon="💠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL (CSS BLINDADO & HARMONIZADO) ---
+# --- ESTILO VISUAL BLINDADO (CSS ISOLADO) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -41,7 +30,9 @@ st.markdown("""
     :root { --brand-primary: #004E92; --bg-light: #F7FAFC; }
     
     /* 2. ABAS (PILL NAVIGATION) */
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; padding: 10px 0; }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px; background-color: transparent; padding: 10px 0;
+    }
     .stTabs [data-baseweb="tab"] {
         height: 45px; background-color: #FFFFFF; border-radius: 30px;
         border: 1px solid #CBD5E0; color: #4A5568; padding: 0 20px;
@@ -52,7 +43,7 @@ st.markdown("""
         border-color: var(--brand-primary) !important; box-shadow: 0 4px 10px rgba(0, 78, 146, 0.3);
     }
 
-    /* 3. INPUTS & CONTROLES */
+    /* 3. INPUTS & CONTROLES (SEM VERMELHO) */
     .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         border-radius: 12px !important; border: 1px solid #CBD5E0 !important;
     }
@@ -64,7 +55,7 @@ st.markdown("""
     }
     span[data-baseweb="tag"] span { color: #004E92 !important; }
 
-    /* 4. CARDS (ESTILO UNIFICADO) */
+    /* 4. CARDS (ICON BUBBLE) */
     .feature-card {
         background: white; padding: 25px; border-radius: 20px;
         border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
@@ -81,13 +72,15 @@ st.markdown("""
     .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; }
     .feature-card p { font-size: 0.95rem; color: #718096; line-height: 1.6; margin: 0; }
 
-    /* 5. BOTÕES */
+    /* 5. BOTÕES (AZUL FORÇADO) */
     .stButton > button {
         background-color: var(--brand-primary) !important; color: white !important;
         border-radius: 12px !important; border: none !important; font-weight: 700 !important;
         height: 3.2em !important; transition: 0.3s !important;
     }
-    .stButton > button:hover { background-color: #003a6e !important; transform: scale(1.02) !important; }
+    .stButton > button:hover {
+        background-color: #003a6e !important; transform: scale(1.02) !important;
+    }
     div[data-testid="column"] .stButton button[kind="secondary"] {
         background-color: transparent !important; color: var(--brand-primary) !important;
         border: 2px solid var(--brand-primary) !important;
@@ -98,7 +91,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÕES UTILITÁRIAS ---
+# --- FUNÇÕES ---
+def encontrar_arquivo_logo():
+    possiveis_nomes = ["360.png", "360.jpg", "logo.png", "logo.jpg"]
+    for nome in possiveis_nomes:
+        if os.path.exists(nome): return nome
+    return None
+
 def get_base64_image(image_path):
     if not image_path: return ""
     with open(image_path, "rb") as img_file:
@@ -149,7 +148,7 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
         Estratégias: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
         
-        GERE UM PARECER TÉCNICO (Formato Texto Limpo):
+        GERE UM PARECER TÉCNICO (Texto Limpo):
         1. CONEXÃO NEURAL: Uso do Hiperfoco.
         2. FOCO BNCC ({foco_bncc}): 1 objetivo adaptado.
         3. AJUSTE FINO: Validação das estratégias.
@@ -190,7 +189,6 @@ def gerar_pdf_nativo(dados):
     pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0, 78, 146)
     pdf.cell(0, 10, txt("2. ESTRATÉGIAS EDUCACIONAIS"), 0, 1)
     pdf.set_font("Arial", size=11); pdf.set_text_color(0)
-    
     if dados['estrategias_acesso']: pdf.multi_cell(0, 7, txt("Acesso: " + limpar_para_pdf(', '.join(dados['estrategias_acesso']))))
     if dados['estrategias_ensino']: pdf.multi_cell(0, 7, txt("Metodologia: " + limpar_para_pdf(', '.join(dados['estrategias_ensino']))))
     if dados['estrategias_avaliacao']: pdf.multi_cell(0, 7, txt("Avaliação: " + limpar_para_pdf(', '.join(dados['estrategias_avaliacao']))))
@@ -238,15 +236,13 @@ with st.sidebar:
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']; st.success("✅ Chave Segura")
     else: api_key = st.text_input("Chave API:", type="password")
-    st.markdown("---"); st.info("Versão 19.0 | Platinum Final")
+    st.markdown("---"); st.info("Versão 19.0 | Unified Design")
 
-# --- CABEÇALHO (HARMONIZADO & LOGO MAIOR) ---
+# --- CABEÇALHO ---
 logo = encontrar_arquivo_logo()
-header_html = ""
 if logo:
     mime = "image/png" if logo.lower().endswith("png") else "image/jpeg"
     b64 = get_base64_image(logo)
-    # Header agora usa o mesmo estilo visual dos cards (feature-card) para harmonia
     header_html = f"""
     <div style="padding: 25px; background: white; border-radius: 20px; border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 30px; display: flex; align-items: center; gap: 25px;">
         <img src="data:{mime};base64,{b64}" style="max-height: 105px; width: auto;"> 
@@ -267,7 +263,6 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 with tab1:
     st.markdown("### <i class='ri-dashboard-line'></i> Ecossistema de Inclusão", unsafe_allow_html=True)
     st.write("")
-    
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("""
@@ -285,7 +280,6 @@ with tab1:
             <p>O PEI é <b>obrigatório</b> para estudantes com barreiras de aprendizagem, <b>independente de laudo médico fechado</b>. A escola deve garantir o suporte.</p>
         </div>
         """, unsafe_allow_html=True)
-
     st.write("")
     c3, c4 = st.columns(2)
     with c3:
@@ -305,9 +299,10 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-# 2. ESTUDANTE
+# 2. ESTUDANTE (COM TÍTULO UNIFICADO)
 with tab2:
-    st.info("Preencha o dossiê do estudante.")
+    st.markdown("### <i class='ri-user-3-line'></i> Dossiê do Estudante", unsafe_allow_html=True)
+    st.info("Preencha os dados de identificação e contexto.")
     c1, c2, c3 = st.columns([2, 1, 1])
     st.session_state.dados['nome'] = c1.text_input("Nome do Estudante", st.session_state.dados['nome'])
     val_nasc = st.session_state.dados.get('nasc')
@@ -332,7 +327,7 @@ with tab2:
         uploaded_file = st.file_uploader("Upload do arquivo", type="pdf", key="uploader_tab2")
         if uploaded_file is not None:
             texto = ler_pdf(uploaded_file)
-            if texto: st.session_state.pdf_text = texto; st.success("✅ Laudo lido com sucesso!")
+            if texto: st.session_state.pdf_text = texto; st.success("✅ Laudo integrado!")
 
 # 3. MAPEAMENTO
 with tab3:
@@ -409,7 +404,7 @@ with tab5:
         st.caption(f"Contexto: {status}")
         
         if st.button("✨ Gerar Parecer do Especialista", type="primary"):
-            if not st.session_state.dados['nome']: st.warning("Preencha o nome do estudante.")
+            if not st.session_state.dados['nome']: st.warning("Preencha o nome.")
             else:
                 with st.spinner("Analisando BNCC e Neurociência..."):
                     res, err = consultar_ia(api_key, st.session_state.dados, st.session_state.pdf_text)
