@@ -14,13 +14,15 @@ import os
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="PEI 360º | Sistema Inclusivo",
-    page_icon="🌀",
+    page_icon="💠", # Ícone de navegador discreto
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL ---
+# --- ESTILO VISUAL & ÍCONES (REMIX ICON) ---
 st.markdown("""
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+    
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #2D3748; }
@@ -32,21 +34,29 @@ st.markdown("""
         border-radius: 8px !important; border: 1px solid #CBD5E0 !important;
     }
     
-    /* Upload (Personalizado para parecer menor) */
-    div[data-testid="stFileUploader"] {
-        padding-top: 0px;
-    }
+    /* Upload */
+    div[data-testid="stFileUploader"] { padding-top: 0px; }
     div[data-testid="stFileUploader"] section { 
         background-color: #F7FAFC; border: 1px dashed #CBD5E0; border-radius: 8px;
     }
 
-    /* Cards */
+    /* Cards Profissionais */
     .info-card {
-        background-color: white; padding: 20px; border-radius: 12px;
+        background-color: white; padding: 25px; border-radius: 12px;
         border-left: 5px solid var(--main-blue);
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05); height: 100%; margin-bottom: 15px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03); height: 100%; margin-bottom: 20px;
+        transition: transform 0.2s;
     }
-    .info-card h4 { color: var(--main-blue); margin-bottom: 8px; font-weight: 700; }
+    .info-card:hover { transform: translateY(-2px); }
+    
+    .info-card h4 { 
+        color: var(--main-blue); margin-bottom: 12px; font-weight: 700; 
+        display: flex; align-items: center; gap: 10px;
+    }
+    .info-card i { font-size: 1.2rem; } /* Tamanho do ícone */
+    
+    /* Ícones nos Títulos Markdown */
+    h3 i { color: var(--main-blue); margin-right: 8px; font-weight: normal; }
     
     /* Botões */
     .stButton>button {
@@ -100,10 +110,7 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         prompt_sistema = """
         Você é um Especialista em Inclusão Escolar.
-        Seu tripé de análise é:
-        1. LBI 13.146 (Direito e Acesso).
-        2. Neurociência (Funções Executivas).
-        3. BNCC (Habilidades Essenciais da Série).
+        Tripé: LBI 13.146, Neurociência e BNCC.
         """
         contexto_extra = f"\n📄 LAUDO ANEXO:\n{contexto_pdf[:3000]}" if contexto_pdf else ""
         nasc_str = str(dados.get('nasc', ''))
@@ -115,9 +122,9 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
         
         PARECER TÉCNICO:
-        1. Conexão Neural (Hiperfoco como alavanca).
-        2. Foco BNCC (Cite 1 habilidade da série {dados['serie']} a ser flexibilizada).
-        3. Estratégias (Ambiente e Avaliação).
+        1. Conexão Neural (Hiperfoco).
+        2. Foco BNCC (Habilidade essencial).
+        3. Estratégias Práticas.
         """
         response = client.chat.completions.create(
             model="deepseek-chat",
@@ -206,7 +213,7 @@ if 'dados' not in st.session_state:
         'b_social': [], 'sup_social': '🟡 Monitorado',
         'estrategias_acesso': [], 'estrategias_curriculo': [], 'ia_sugestao': ''
     }
-# Patch de correção para campos novos
+# Patchs de segurança
 if 'nasc' not in st.session_state.dados: st.session_state.dados['nasc'] = None
 if 'rede_apoio' not in st.session_state.dados: st.session_state.dados['rede_apoio'] = []
 if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
@@ -223,23 +230,22 @@ with st.sidebar:
         api_key = st.text_input("Chave API DeepSeek:", type="password")
     
     st.markdown("---")
-    st.info("Versão 9.0 | Gold Master")
+    st.info("Versão 10.0 | Professional UI")
 
-# --- CABEÇALHO CORRIGIDO (SEM ERRO DE HTML) ---
+# --- CABEÇALHO ---
 arquivo_logo = encontrar_arquivo_logo()
 header_html = ""
 
 if arquivo_logo:
-    # Lógica segura para imagem
     mime = "image/png" if arquivo_logo.lower().endswith("png") else "image/jpeg"
     b64 = get_base64_image(arquivo_logo)
-    # Aqui usamos concatenação simples para evitar conflito de chaves
+    # Ícone ao lado do texto
     img_tag = f'<img src="data:{mime};base64,{b64}" style="max-height: 85px; width: auto; margin-right: 20px;">'
     text_div = '<div style="border-left: 2px solid #CBD5E0; padding-left: 20px; height: 60px; display: flex; align-items: center;"><p style="margin: 0; color: #4A5568; font-weight: 500; font-size: 1.1rem;">Planejamento Educacional Individualizado</p></div>'
     header_inner = f'<div style="display: flex; align-items: center; height: 100%;">{img_tag}{text_div}</div>'
 else:
-    # Fallback
-    header_inner = '<div style="display: flex; align-items: center;"><span style="font-size: 3.5rem; margin-right: 20px;">🌀</span><div><h1 style="color: #004E92; margin: 0; font-weight: 800; font-size: 2.5rem; line-height: 1;">PEI 360º</h1><p style="margin: 5px 0 0 0; color: #4A5568;">Sistema de Inclusão</p></div></div>'
+    # Fallback com ícone Remix
+    header_inner = '<div style="display: flex; align-items: center;"><i class="ri-global-line" style="font-size: 3.5rem; margin-right: 20px; color: #004E92;"></i><div><h1 style="color: #004E92; margin: 0; font-weight: 800; font-size: 2.5rem; line-height: 1;">PEI 360º</h1><p style="margin: 5px 0 0 0; color: #4A5568;">Sistema de Inclusão</p></div></div>'
 
 st.markdown(f"""
 <div style="padding: 15px 25px; background: linear-gradient(90deg, #FFFFFF 0%, #E3F2FD 100%); border-radius: 15px; border-left: 8px solid #004E92; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; min-height: 100px; display: flex; align-items: center;">
@@ -247,46 +253,61 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-abas = ["🏠 Início", "👤 Estudante", "🔍 Mapeamento", "✅ Plano de Ação", "🤖 Assistente de IA", "🖨️ Documento"]
+# Abas "Clean" (Sem Emojis, apenas texto profissional)
+abas = ["Início", "Estudante", "Mapeamento", "Plano de Ação", "Assistente de IA", "Documento"]
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 
-# 1. HOME
+# 1. HOME (COM ÍCONES FLATS)
 with tab1:
-    st.markdown("### Bem-vindo ao Ecossistema de Inclusão")
+    st.markdown("### <i class='ri-dashboard-line'></i> Ecossistema de Inclusão", unsafe_allow_html=True)
     st.write("")
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="info-card"><h4>📘 O que é o PEI?</h4><p>Não é apenas um formulário. É um <b>mapa vivo</b> que transforma a matrícula em inclusão real, desenhando a rota entre o potencial do estudante e o currículo.</p></div>', unsafe_allow_html=True)
-        st.markdown('<div class="info-card"><h4>⚖️ Legislação (LBI 13.146)</h4><p>A Lei Brasileira de Inclusão garante o acesso. O PEI é a prova material de que a escola oferece as adaptações razoáveis exigidas por lei.</p></div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="info-card">
+            <h4><i class="ri-book-open-line"></i> O que é o PEI?</h4>
+            <p>Não é apenas um formulário. É um <b>mapa vivo</b> que transforma a matrícula em inclusão real, desenhando a rota entre o potencial do estudante e o currículo.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("""
+        <div class="info-card">
+            <h4><i class="ri-scales-3-line"></i> Legislação (LBI 13.146)</h4>
+            <p>A Lei Brasileira de Inclusão garante o acesso. O PEI é a prova material de que a escola oferece as adaptações razoáveis exigidas por lei.</p>
+        </div>
+        """, unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="info-card"><h4>🧠 Neurociência</h4><p>Olhamos para as <b>Funções Executivas</b>. Não focamos apenas no conteúdo, mas em "como" o cérebro processa a informação.</p></div>', unsafe_allow_html=True)
-        st.markdown('<div class="info-card"><h4>🇧🇷 Conexão BNCC</h4><p>Utilizamos as <b>Habilidades Essenciais</b> da Base Nacional. O objetivo é flexibilizar o currículo para garantir os direitos de aprendizagem.</p></div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="info-card">
+            <h4><i class="ri-brain-line"></i> Neurociência</h4>
+            <p>Olhamos para as <b>Funções Executivas</b>. Não focamos apenas no conteúdo, mas em "como" o cérebro processa a informação.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("""
+        <div class="info-card">
+            <h4><i class="ri-government-line"></i> Conexão BNCC</h4>
+            <p>Utilizamos as <b>Habilidades Essenciais</b> da Base Nacional. O objetivo é flexibilizar o currículo para garantir os direitos de aprendizagem.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-# 2. ESTUDANTE (DATA BR + UPLOAD NO FINAL)
+# 2. ESTUDANTE
 with tab2:
     st.info("Dossiê do Estudante.")
     c1, c2, c3 = st.columns([2, 1, 1])
     st.session_state.dados['nome'] = c1.text_input("Nome do Estudante", st.session_state.dados['nome'])
-    
-    # DATA BRASILEIRA (DD/MM/YYYY)
     val_nasc = st.session_state.dados.get('nasc')
     st.session_state.dados['nasc'] = c2.date_input("Data de Nascimento", val_nasc, format="DD/MM/YYYY")
-    
-    # SELECTBOX COM PLACEHOLDER (Português)
     st.session_state.dados['serie'] = c3.selectbox("Série/Ano", ["Ed. Infantil", "1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "Ensino Médio"], index=None, placeholder="Selecione...")
     
     st.markdown("---")
     c_diag, c_rede = st.columns(2)
     st.session_state.dados['diagnostico'] = c_diag.text_input("Diagnóstico Clínico", st.session_state.dados['diagnostico'])
-    
     val_rede = st.session_state.dados.get('rede_apoio', [])
-    st.session_state.dados['rede_apoio'] = c_rede.multiselect("Rede de Apoio:", ["Psicólogo", "Fonoaudiólogo", "Neuropediatra", "Terapeuta Ocupacional", "Psicopedagogo", "AT"], default=val_rede, placeholder="Selecione os especialistas...")
+    st.session_state.dados['rede_apoio'] = c_rede.multiselect("Rede de Apoio:", ["Psicólogo", "Fonoaudiólogo", "Neuropediatra", "Terapeuta Ocupacional", "Psicopedagogo", "AT"], default=val_rede, placeholder="Selecione...")
     
     ch, cf = st.columns(2)
     st.session_state.dados['historico'] = ch.text_area("Histórico Escolar", st.session_state.dados['historico'])
     st.session_state.dados['familia'] = cf.text_area("Escuta da Família", st.session_state.dados['familia'])
     
-    # UPLOAD NO FINAL (EXPANDER)
     st.write("")
     with st.expander("📂 Anexar Laudo/Relatório (Opcional)"):
         uploaded_file = st.file_uploader("Arraste o arquivo PDF aqui", type="pdf", key="uploader_tab2")
@@ -296,11 +317,12 @@ with tab2:
 
 # 3. MAPEAMENTO
 with tab3:
+    st.markdown("### <i class='ri-rocket-line'></i> Potencialidades", unsafe_allow_html=True)
     c_pot1, c_pot2 = st.columns(2)
     st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco (Interesse)")
     st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", ["Memória Visual", "Tecnologia", "Artes", "Oralidade", "Lógica"], placeholder="Selecione...")
     
-    st.markdown("### 🚧 Barreiras")
+    st.markdown("### <i class='ri-barricade-line'></i> Barreiras", unsafe_allow_html=True)
     with st.expander("👁️ Sensorial e Físico", expanded=True):
         st.session_state.dados['b_sensorial'] = st.multiselect("Barreiras:", ["Hipersensibilidade", "Busca Sensorial", "Seletividade", "Motora"], key="b_sens", placeholder="Selecione...")
         st.session_state.dados['sup_sensorial'] = st.select_slider("Suporte:", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_sens")
@@ -313,6 +335,7 @@ with tab3:
 
 # 4. ESTRATÉGIAS
 with tab4:
+    st.markdown("### <i class='ri-checkbox-circle-line'></i> Estratégias", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("**Adaptações de Acesso**")
@@ -321,16 +344,15 @@ with tab4:
         st.markdown("**Adaptações Curriculares**")
         st.session_state.dados['estrategias_curriculo'] = st.multiselect("Estratégias:", ["Menos Questões", "Prova Oral", "Mapa Mental", "Conteúdo Prioritário", "Prática"], placeholder="Selecione...")
 
-# 5. ASSISTENTE (NOVO TEXTO)
+# 5. ASSISTENTE
 with tab5:
     col_ia_left, col_ia_right = st.columns([1, 2])
     with col_ia_left:
-        st.markdown("### 🤖 Consultor Especialista")
+        st.markdown("### <i class='ri-robot-line'></i> Consultor Especialista", unsafe_allow_html=True)
         
-        # CARD REFORMULADO
         st.markdown("""
         <div class="info-card">
-            <h4>🧠 Tripé da Inclusão</h4>
+            <h4><i class="ri-lightbulb-flash-line"></i> Tripé da Inclusão</h4>
             <p>Minha análise cruza três bases fundamentais:</p>
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; color: #4A5568;">
                 <li><b>Legislação (LBI):</b> Garantia de direitos.</li>
@@ -351,7 +373,7 @@ with tab5:
                     if err: st.error(err)
                     else: st.session_state.dados['ia_sugestao'] = res; st.success("Pronto!")
     with col_ia_right:
-        st.markdown("### 💡 Parecer Técnico")
+        st.markdown("### <i class='ri-file-text-line'></i> Parecer Técnico", unsafe_allow_html=True)
         if st.session_state.dados['ia_sugestao']:
             st.text_area("Sugestões:", st.session_state.dados['ia_sugestao'], height=500)
         else:
