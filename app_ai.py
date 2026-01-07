@@ -11,9 +11,8 @@ import base64
 import os
 import re
 
-# --- FUNÇÃO PARA DEFINIR O ÍCONE DA ABA (FAVICON) ---
+# --- FUNÇÃO FAVICON ---
 def get_favicon():
-    # Prioridade para o ícone específico, depois a logo, depois um emoji
     if os.path.exists("iconeaba.png"): return "iconeaba.png"
     if os.path.exists("360.png"): return "360.png"
     return "📘"
@@ -26,7 +25,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL 100% RESPONSIVO E UNIFICADO ---
+# --- ESTILO VISUAL REFINADO (CSS) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -34,74 +33,58 @@ st.markdown("""
     <style>
     /* 1. GLOBAL */
     html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2D3748; }
-    :root { --brand-primary: #004E92; --bg-light: #F7FAFC; --card-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    :root { --brand-primary: #004E92; --bg-light: #F7FAFC; --card-shadow: 0 4px 6px rgba(0,0,0,0.03); }
     
-    /* 2. HEADER RESPONSIVO */
+    /* 2. HEADER */
     .header-container {
-        padding: 20px;
-        background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%);
-        border-radius: 16px;
-        border-left: 8px solid var(--brand-primary);
-        box-shadow: var(--card-shadow);
-        margin-bottom: 30px;
-        display: flex;
-        align-items: center;
-        gap: 25px;
+        padding: 20px; background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%);
+        border-radius: 16px; border-left: 8px solid var(--brand-primary);
+        box-shadow: var(--card-shadow); margin-bottom: 25px;
+        display: flex; align-items: center; gap: 25px;
     }
     
-    /* Ajuste Mobile para o Header */
-    @media (max-width: 768px) {
-        .header-container {
-            flex-direction: column;
-            text-align: center;
-            padding: 15px;
-            gap: 15px;
-        }
-        .header-logo {
-            margin-right: 0 !important;
-            margin-bottom: 10px;
-        }
-        .header-text {
-            border-left: none !important;
-            padding-left: 0 !important;
-            border-top: 1px solid #CBD5E0;
-            padding-top: 10px;
-            width: 100%;
-        }
+    /* 3. ABAS (CORRIGIDO: COMPACTAS E ELEGANTES) */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px; background-color: transparent; padding: 10px 0;
+        justify-content: flex-start; /* Alinha à esquerda, não estica */
+        flex-wrap: wrap;
     }
-
-    /* 3. ABAS (PILL DESIGN) */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: transparent; padding: 10px 0; flex-wrap: wrap; }
     .stTabs [data-baseweb="tab"] {
-        height: 45px; background-color: #FFFFFF; border-radius: 30px;
-        border: 1px solid #CBD5E0; color: #4A5568; padding: 0 20px;
-        font-weight: 700; font-size: 0.9rem; transition: all 0.3s ease;
-        flex-grow: 1; /* Ocupa espaço no mobile */
-        justify-content: center;
+        height: 40px; /* Mais baixo/delicado */
+        background-color: #FFFFFF;
+        border-radius: 20px;
+        border: 1px solid #CBD5E0;
+        color: #4A5568;
+        padding: 0 20px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        flex-grow: 0; /* IMPORTANTE: Não estica para preencher espaço */
+        transition: all 0.2s ease;
     }
     .stTabs [aria-selected="true"] {
-        background-color: var(--brand-primary) !important; color: white !important;
-        border-color: var(--brand-primary) !important; box-shadow: 0 4px 10px rgba(0, 78, 146, 0.3);
+        background-color: var(--brand-primary) !important;
+        color: white !important;
+        border-color: var(--brand-primary) !important;
+        box-shadow: 0 4px 8px rgba(0, 78, 146, 0.25);
     }
 
-    /* 4. CARDS UNIFICADOS (ICON BUBBLE) */
+    /* 4. CARDS (ICON BUBBLE UNIFICADO) */
     .feature-card {
         background: white; padding: 25px; border-radius: 20px;
         border: 1px solid #EDF2F7; box-shadow: var(--card-shadow);
         height: 100%; transition: all 0.3s ease;
         display: flex; flex-direction: column; align-items: flex-start;
     }
-    .feature-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); }
+    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.06); }
     
     .icon-box {
-        width: 45px; height: 45px; background: #E3F2FD; border-radius: 12px;
-        display: flex; align-items: center; justify-content: center; margin-bottom: 15px;
-        flex-shrink: 0;
+        width: 42px; height: 42px; background: #E3F2FD; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center; margin-bottom: 15px; flex-shrink: 0;
     }
-    .icon-box i { font-size: 22px; color: var(--brand-primary); }
+    .icon-box i { font-size: 20px; color: var(--brand-primary); }
     
-    .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; line-height: 1.3; }
-    .feature-card p { font-size: 0.95rem; color: #718096; line-height: 1.6; margin: 0; }
+    .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.05rem; margin-bottom: 8px; line-height: 1.3; }
+    .feature-card p { font-size: 0.9rem; color: #718096; line-height: 1.5; margin: 0; }
 
     /* 5. INPUTS & BOTÕES */
     .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
@@ -110,11 +93,10 @@ st.markdown("""
     .stTextInput input:focus, .stTextArea textarea:focus {
         border-color: var(--brand-primary) !important; box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
     }
-    
     .stButton > button {
         background-color: var(--brand-primary) !important; color: white !important;
         border-radius: 12px !important; border: none !important; font-weight: 700 !important;
-        height: 3.5em !important; width: 100%; transition: 0.3s !important;
+        height: 3.2em !important; width: 100%; transition: 0.3s !important;
     }
     div[data-testid="column"] .stButton button[kind="secondary"] {
         background-color: transparent !important; color: var(--brand-primary) !important;
@@ -123,15 +105,20 @@ st.markdown("""
     span[data-baseweb="tag"] { background-color: #EBF8FF !important; border: 1px solid #90CDF4 !important; }
     span[data-baseweb="tag"] span { color: #004E92 !important; }
     
-    /* Upload */
+    /* Upload & Mobile */
     div[data-testid="stFileUploader"] section { background-color: #F8FAFC; border: 1px dashed #A0AEC0; }
+    @media (max-width: 768px) {
+        .header-container { flex-direction: column; text-align: center; gap: 15px; }
+        .header-text { border-left: none !important; padding-left: 0 !important; border-top: 1px solid #CBD5E0; padding-top: 10px; width: 100%; }
+        .stTabs [data-baseweb="tab"] { flex-grow: 1; /* No celular, aí sim estica para facilitar o toque */ }
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- FUNÇÕES ---
-def encontrar_arquivo_logo():
-    possiveis_nomes = ["360.png", "360.jpg", "logo.png", "logo.jpg"]
-    for nome in possiveis_nomes:
+def finding_logo():
+    possiveis = ["360.png", "360.jpg", "logo.png", "logo.jpg"]
+    for nome in possiveis:
         if os.path.exists(nome): return nome
     return None
 
@@ -160,35 +147,49 @@ def limpar_para_pdf(texto):
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
     texto = texto.replace('* ', '• ')
+    # Remove caracteres estranhos mas mantêm acentos
     texto = re.sub(r'[^\x00-\x7F\xA0-\xFF]', '', texto) 
     return texto
 
-# --- INTELIGÊNCIA ---
+# --- INTELIGÊNCIA (PROMPT CORRIGIDO) ---
 def consultar_ia(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ A chave de API não foi detectada."
     try:
         client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         serie = dados['serie'] if dados['serie'] else ""
-        if "Infantil" in serie:
-            foco_bncc = "Campos de Experiência e Objetivos de Aprendizagem"
-        else:
-            foco_bncc = "Habilidades Essenciais (Códigos Alfanuméricos)"
+        
+        foco_bncc = "Campos de Experiência" if "Infantil" in serie else "Habilidades Essenciais"
 
-        prompt_sistema = "Você é um Coordenador Pedagógico Especialista em Inclusão e BNCC."
+        # PROMPT REFINADO: ORDEM NEGATIVA PARA EVITAR REDUNDÂNCIA
+        prompt_sistema = """
+        Você é um Especialista Sênior em Inclusão e Neurociência.
+        Sua tarefa é gerar um PARECER TÉCNICO ESTRATÉGICO e DIRETO.
+        
+        REGRAS DE OURO:
+        1. NÃO REPITAS os dados de identificação (Nome, Idade, Diagnóstico) no início. O documento já tem cabeçalho.
+        2. Inicie diretamente com a análise.
+        3. Use linguagem técnica mas acessível aos professores.
+        """
+        
         contexto_extra = f"\n📄 LAUDO:{contexto_pdf[:3000]}" if contexto_pdf else ""
         nasc_str = str(dados.get('nasc', ''))
         
         prompt_usuario = f"""
-        Estudante: {dados['nome']} | Série: {serie} | Idade: {nasc_str}
-        Diag: {dados['diagnostico']} | Hiperfoco: {dados['hiperfoco']}
-        {contexto_extra}
+        Aluno: {dados['nome']} | Série: {serie} | Diag: {dados['diagnostico']} | Hiperfoco: {dados['hiperfoco']}
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
-        Estratégias: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
+        Estratégias da Escola: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
+        {contexto_extra}
         
-        GERE UM PARECER TÉCNICO (Texto Limpo e Objetivo):
-        1. CONEXÃO NEURAL: Uso do Hiperfoco.
-        2. FOCO BNCC ({foco_bncc}): 1 objetivo adaptado.
-        3. AJUSTE FINO: Validação das estratégias.
+        GERE O TEXTO SEGUINDO ESTA ESTRUTURA (Sem repetir nome/idade):
+        
+        1. ANÁLISE NEUROFUNCIONAL
+        (Explique como o cérebro deste aluno aprende melhor usando o Hiperfoco como alavanca e as barreiras identificadas).
+        
+        2. CONEXÃO COM A BNCC ({foco_bncc})
+        (Cite 1 objetivo de aprendizagem central da série e como ele deve ser flexibilizado na prática).
+        
+        3. RECOMENDAÇÕES AO PROFESSOR
+        (Valide as estratégias escolhidas e sugira uma rotina prática de sala de aula).
         """
         response = client.chat.completions.create(
             model="deepseek-chat",
@@ -201,7 +202,7 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
 # --- PDF ---
 class PDF(FPDF):
     def header(self):
-        logo = encontrar_arquivo_logo()
+        logo = finding_logo()
         if logo:
             self.image(logo, x=10, y=8, w=25)
             x = 40
@@ -210,42 +211,63 @@ class PDF(FPDF):
         self.cell(x); self.cell(0, 10, 'PEI - PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'C'); self.ln(5)
     def footer(self):
         self.set_y(-15); self.set_font('Arial', 'I', 8); self.set_text_color(128)
-        self.cell(0, 10, f'Página {self.page_no()} | Confidencial', 0, 0, 'C')
+        self.cell(0, 10, f'Página {self.page_no()} | Documento Confidencial', 0, 0, 'C')
 
 def gerar_pdf_nativo(dados):
     pdf = PDF(); pdf.add_page(); pdf.set_font("Arial", size=11)
     def txt(t): return str(t).encode('latin-1', 'replace').decode('latin-1')
 
+    # 1. Identificação
     pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0, 78, 146)
-    pdf.cell(0, 10, txt("1. IDENTIFICAÇÃO"), 0, 1)
+    pdf.cell(0, 10, txt("1. IDENTIFICAÇÃO DO ESTUDANTE"), 0, 1)
     pdf.set_font("Arial", size=11); pdf.set_text_color(0)
+    
     nasc = dados.get('nasc'); d_nasc = nasc.strftime('%d/%m/%Y') if nasc else "-"
     pdf.multi_cell(0, 7, txt(f"Nome: {dados['nome']} | Série: {dados['serie']}\nNascimento: {d_nasc}\nDiagnóstico: {dados['diagnostico']}"))
     pdf.ln(3)
 
+    # 2. Estratégias
     pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0, 78, 146)
     pdf.cell(0, 10, txt("2. ESTRATÉGIAS EDUCACIONAIS"), 0, 1)
     pdf.set_font("Arial", size=11); pdf.set_text_color(0)
-    if dados['estrategias_acesso']: pdf.multi_cell(0, 7, txt("Acesso: " + limpar_para_pdf(', '.join(dados['estrategias_acesso']))))
-    if dados['estrategias_ensino']: pdf.multi_cell(0, 7, txt("Metodologia: " + limpar_para_pdf(', '.join(dados['estrategias_ensino']))))
-    if dados['estrategias_avaliacao']: pdf.multi_cell(0, 7, txt("Avaliação: " + limpar_para_pdf(', '.join(dados['estrategias_avaliacao']))))
     
+    if dados['estrategias_acesso']:
+        pdf.set_font("Arial", 'B', 11); pdf.cell(0, 8, txt("Acesso e Organização:"), 0, 1); pdf.set_font("Arial", size=11)
+        pdf.multi_cell(0, 7, txt(limpar_para_pdf(', '.join(dados['estrategias_acesso']))))
+    
+    if dados['estrategias_ensino']:
+        pdf.set_font("Arial", 'B', 11); pdf.cell(0, 8, txt("Metodologia e Ensino:"), 0, 1); pdf.set_font("Arial", size=11)
+        pdf.multi_cell(0, 7, txt(limpar_para_pdf(', '.join(dados['estrategias_ensino']))))
+        
+    if dados['estrategias_avaliacao']:
+        pdf.set_font("Arial", 'B', 11); pdf.cell(0, 8, txt("Avaliação Diferenciada:"), 0, 1); pdf.set_font("Arial", size=11)
+        pdf.multi_cell(0, 7, txt(limpar_para_pdf(', '.join(dados['estrategias_avaliacao']))))
+    
+    # 3. Parecer IA
     if dados['ia_sugestao']:
-        pdf.ln(3); pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0, 78, 146)
-        pdf.cell(0, 10, txt("3. PARECER TÉCNICO"), 0, 1)
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0, 78, 146)
+        pdf.cell(0, 10, txt("3. PARECER TÉCNICO PEDAGÓGICO"), 0, 1)
         pdf.set_font("Arial", size=11); pdf.set_text_color(50)
-        pdf.multi_cell(0, 6, txt(limpar_para_pdf(dados['ia_sugestao'])))
+        # Limpa o texto da IA para evitar problemas de codificação
+        conteudo_ia = limpar_para_pdf(dados['ia_sugestao'])
+        pdf.multi_cell(0, 6, txt(conteudo_ia))
 
     pdf.ln(15); pdf.set_draw_color(0); pdf.line(20, pdf.get_y(), 190, pdf.get_y())
-    pdf.cell(0, 10, txt("Coordenação Pedagógica"), 0, 1, 'C')
+    pdf.cell(0, 10, txt("Coordenação Pedagógica / Direção Escolar"), 0, 1, 'C')
     return pdf.output(dest='S').encode('latin-1')
 
 def gerar_docx_final(dados):
     doc = Document(); style = doc.styles['Normal']; style.font.name = 'Arial'; style.font.size = Pt(11)
-    doc.add_heading('PEI', 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph(f"Nome: {dados['nome']}")
+    doc.add_heading('PEI - PLANO DE ENSINO INDIVIDUALIZADO', 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph(f"Nome: {dados['nome']} | Série: {dados['serie']}")
+    
+    doc.add_heading('Estratégias', level=1)
+    doc.add_paragraph(f"Acesso: {', '.join(dados['estrategias_acesso'])}")
+    doc.add_paragraph(f"Ensino: {', '.join(dados['estrategias_ensino'])}")
+    
     if dados['ia_sugestao']:
-        doc.add_heading('Parecer', level=1)
+        doc.add_heading('Parecer Técnico', level=1)
         doc.add_paragraph(limpar_markdown(dados['ia_sugestao']))
     buffer = BytesIO(); doc.save(buffer); buffer.seek(0)
     return buffer
@@ -268,15 +290,16 @@ if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
 
 # --- SIDEBAR ---
 with st.sidebar:
-    logo = encontrar_arquivo_logo()
+    logo = finding_logo()
     if logo: st.image(logo, width=120)
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']; st.success("✅ Chave Segura")
     else: api_key = st.text_input("Chave API:", type="password")
-    st.markdown("---"); st.info("Versão 20.0 | Golden Edition")
+    st.markdown("---"); st.info("Versão 21.0 | Diamond Polish")
 
 # --- CABEÇALHO ---
-logo = encontrar_arquivo_logo()
+logo = finding_logo()
+header_html = ""
 if logo:
     mime = "image/png" if logo.lower().endswith("png") else "image/jpeg"
     b64 = get_base64_image(logo)
@@ -300,7 +323,6 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 with tab1:
     st.markdown("### <i class='ri-dashboard-line'></i> Ecossistema de Inclusão", unsafe_allow_html=True)
     st.write("")
-    
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("""
@@ -394,7 +416,7 @@ with tab3:
         st.write("Nível de Suporte:")
         st.session_state.dados['sup_social'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_soc")
 
-# 4. PLANO DE AÇÃO (ATUALIZADO PARA MODELO NOVO)
+# 4. PLANO DE AÇÃO
 with tab4:
     st.markdown("### <i class='ri-checkbox-circle-line'></i> Definição de Estratégias", unsafe_allow_html=True)
     col_a, col_b = st.columns(2)
