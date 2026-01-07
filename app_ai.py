@@ -11,7 +11,7 @@ import re
 import base64
 import os
 
-# --- CONFIGURAÇÃO DA PÁGINA (WIDE & RESPONSIVA) ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="PEI 360º | Sistema Inclusivo",
     page_icon="💠",
@@ -19,56 +19,79 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL RESPONSIVO (MOBILE READY) ---
+# --- ESTILO VISUAL REFINADO (BLUE/GREEN MODE) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-    /* FONTE & CORES GERAIS */
+    /* 1. FONTE E CORES GERAIS */
     html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2D3748; }
     :root { 
-        --brand-primary: #004E92; 
-        --brand-secondary: #00796B;
+        --brand-primary: #004E92; /* Azul Arco */
+        --brand-success: #48BB78; /* Verde Positivo */
         --bg-light: #F7FAFC; 
     }
     
-    /* INPUTS AMIGÁVEIS */
-    .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
-        border-radius: 12px !important; border: 1px solid #CBD5E0 !important;
-        padding: 10px;
+    /* 2. ABAS COMO BOTÕES (PILLS) */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: transparent;
+        padding-bottom: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        white-space: pre-wrap;
+        background-color: #FFFFFF;
+        border-radius: 20px; /* Arredondado moderno */
+        border: 1px solid #E2E8F0;
+        color: #4A5568;
+        padding: 0 25px;
+        font-weight: 700;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.3s;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: var(--brand-primary) !important;
+        color: white !important;
+        border: none;
+        box-shadow: 0 4px 10px rgba(0, 78, 146, 0.3);
     }
 
-    /* CARDS DA HOME (GLASSMORPHISM) */
+    /* 3. ELIMINANDO O VERMELHO (TAGS E FOCO) */
+    /* Foco nos inputs (Borda Azul) */
+    .stTextInput input:focus, .stTextArea textarea:focus, .stSelectbox div[data-baseweb="select"]:focus-within {
+        border-color: var(--brand-primary) !important;
+        box-shadow: 0 0 0 1px var(--brand-primary) !important;
+    }
+    /* Tags do Multiselect (Azul ao invés de Vermelho) */
+    span[data-baseweb="tag"] {
+        background-color: #E3F2FD !important;
+        border: 1px solid #90CDF4;
+    }
+    span[data-baseweb="tag"] span {
+        color: #004E92 !important;
+    }
+
+    /* 4. CARDS DE DASHBOARD */
     .home-card {
-        background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+        background: white;
         padding: 25px;
         border-radius: 16px;
-        border: 1px solid #E2E8F0;
         border-left: 6px solid var(--brand-primary);
         box-shadow: 0 4px 6px rgba(0,0,0,0.04);
-        height: 100%;
         margin-bottom: 20px;
         transition: transform 0.2s;
     }
-    .home-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.08); border-color: var(--brand-primary); }
+    .home-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.08); }
     
     .home-card h4 { 
-        color: var(--brand-primary); 
-        font-weight: 800; 
-        font-size: 1.15rem; 
-        margin-bottom: 12px; 
-        display: flex; align-items: center; gap: 10px;
+        color: var(--brand-primary); font-weight: 800; font-size: 1.15rem; 
+        margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
     }
-    
-    .home-card p { 
-        font-size: 0.95rem; 
-        color: #4A5568; 
-        line-height: 1.6; 
-        margin: 0; 
-    }
+    .home-card p { font-size: 0.95rem; color: #4A5568; line-height: 1.6; margin: 0; }
 
-    /* HEADER GRADIENTE (CSS PURO) */
+    /* 5. HEADER */
     .header-container {
         padding: 20px;
         background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%);
@@ -76,33 +99,33 @@ st.markdown("""
         border-left: 8px solid var(--brand-primary);
         box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         margin-bottom: 30px;
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap; /* Permite quebrar linha no celular */
-        gap: 20px;
+        display: flex; align-items: center; flex-wrap: wrap; gap: 20px;
     }
 
-    /* BOTÕES CUSTOMIZADOS */
+    /* 6. BOTÕES */
     .stButton>button {
         border-radius: 12px; font-weight: 700; height: 3.5em; width: 100%; 
         transition: 0.3s; border: none;
     }
-    /* Botão Primário (PDF) */
+    /* Botão Primário (Azul) */
     div[data-testid="column"] .stButton button[kind="primary"] {
         background-color: var(--brand-primary); color: white;
         box-shadow: 0 4px 6px rgba(0, 78, 146, 0.3);
     }
-    /* Botão Secundário (Word) */
+    /* Botão Secundário (Outline) */
     div[data-testid="column"] .stButton button[kind="secondary"] {
         background-color: white; color: var(--brand-primary); 
         border: 2px solid var(--brand-primary);
     }
     .stButton>button:hover { transform: scale(1.02); }
+    
+    /* 7. SLIDER CUSTOMIZADO (BARRAS) */
+    div[data-baseweb="slider"] div { background-color: var(--brand-primary) !important; }
 
-    /* AJUSTES MOBILE */
+    /* MOBILE TWEAKS */
     @media (max-width: 640px) {
         .header-container { flex-direction: column; text-align: center; }
-        .header-text { border-left: none !important; padding-left: 0 !important; padding-top: 10px; }
+        .header-text { border-left: none !important; padding-left: 0 !important; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -166,6 +189,7 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         Diag: {dados['diagnostico']} | Hiperfoco: {dados['hiperfoco']}
         {contexto_extra}
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
+        Estratégias Escola: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
         
         PARECER TÉCNICO (Estrutura):
         1. 🧠 Conexão Neural: Como usar o Hiperfoco.
@@ -262,9 +286,9 @@ with st.sidebar:
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']; st.success("✅ Chave Segura")
     else: api_key = st.text_input("Chave API:", type="password")
-    st.markdown("---"); st.info("Versão 15.0 | Mobile Ready")
+    st.markdown("---"); st.info("Versão 16.0 | Final Cut")
 
-# --- CABEÇALHO RESPONSIVO ---
+# --- CABEÇALHO ---
 logo = encontrar_arquivo_logo()
 header_html = ""
 if logo:
@@ -285,11 +309,11 @@ else:
 
 st.markdown(header_html, unsafe_allow_html=True)
 
-# ABAS
+# ABAS (NAVEGAÇÃO PÍLULA)
 abas = ["Início", "Estudante", "Mapeamento", "Plano de Ação", "Assistente de IA", "Documento"]
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 
-# 1. HOME (4 CARDS REORGANIZADOS)
+# 1. HOME
 with tab1:
     st.markdown("### <i class='ri-dashboard-line'></i> Ecossistema de Inclusão", unsafe_allow_html=True)
     st.write("")
@@ -304,12 +328,12 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
     
-    # CARD 2: LEGISLAÇÃO (OBRIGATORIEDADE)
+    # CARD 2: LEGISLAÇÃO
     with c2:
         st.markdown("""
         <div class="home-card">
-            <h4><i class="ri-scales-3-line"></i> 2. Legislação (Res. Dez/2025)</h4>
-            <p>Atenção: Conforme a LBI e Resoluções recentes, o PEI é <b>obrigatório</b> para qualquer estudante com barreira de aprendizagem, <b>independente de laudo médico</b>. A escola não pode esperar o diagnóstico para agir.</p>
+            <h4><i class="ri-scales-3-line"></i> 2. Obrigatoriedade (Dez/25)</h4>
+            <p>Atenção: A nova Resolução confirma que o PEI é <b>obrigatório</b> para qualquer estudante com barreira de aprendizagem, <b>independente de laudo médico</b>. A escola deve agir imediatamente.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -319,7 +343,7 @@ with tab1:
         st.markdown("""
         <div class="home-card">
             <h4><i class="ri-brain-line"></i> 3. Neurociência</h4>
-            <p>Focamos no <b>"Como Aprender"</b>. Se a memória de trabalho é curta, fragmentamos a tarefa. Se o controle inibitório é baixo, reduzimos distratores. É ciência aplicada à sala de aula.</p>
+            <p>Focamos no <b>"Como Aprender"</b>. Se a memória de trabalho é curta, fragmentamos a tarefa. Se o controle inibitório é baixo, reduzimos distratores. É ciência aplicada.</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -327,14 +351,14 @@ with tab1:
     with c4:
         st.markdown("""
         <div class="home-card">
-            <h4><i class="ri-compass-3-line"></i> 4. Base Nacional (BNCC)</h4>
-            <p>Não criamos um currículo paralelo. <b>Flexibilizamos</b> o currículo oficial. O estudante tem direito de acessar as mesmas Habilidades Essenciais da sua série, mas por caminhos diferentes.</p>
+            <h4><i class="ri-compass-3-line"></i> 4. Conexão BNCC</h4>
+            <p>Não criamos um currículo paralelo. <b>Flexibilizamos</b> o oficial. O estudante acessa as mesmas Habilidades Essenciais da sua série, mas por caminhos pedagógicos diferentes.</p>
         </div>
         """, unsafe_allow_html=True)
 
 # 2. ESTUDANTE
 with tab2:
-    st.info("Preencha os dados do estudante.")
+    st.info("Dossiê do Estudante.")
     c1, c2, c3 = st.columns([2, 1, 1])
     st.session_state.dados['nome'] = c1.text_input("Nome do Estudante", st.session_state.dados['nome'])
     val_nasc = st.session_state.dados.get('nasc')
@@ -345,12 +369,12 @@ with tab2:
     st.markdown("##### <i class='ri-history-line'></i> Contexto Escolar", unsafe_allow_html=True)
     ch, cf = st.columns(2)
     st.session_state.dados['historico'] = ch.text_area("Histórico Escolar", st.session_state.dados['historico'], placeholder="Trajetória, retenções, escolas anteriores...")
-    st.session_state.dados['familia'] = cf.text_area("Escuta da Família", st.session_state.dados['familia'], placeholder="O que a família espera? Rotina em casa...")
+    st.session_state.dados['familia'] = cf.text_area("Escuta da Família", st.session_state.dados['familia'], placeholder="Expectativas, rotina em casa...")
 
     st.markdown("---")
     st.markdown("##### <i class='ri-stethoscope-line'></i> Saúde e Diagnóstico", unsafe_allow_html=True)
     c_diag, c_rede = st.columns(2)
-    st.session_state.dados['diagnostico'] = c_diag.text_input("Diagnóstico (ou hipótese diagnóstica)", st.session_state.dados['diagnostico'])
+    st.session_state.dados['diagnostico'] = c_diag.text_input("Diagnóstico (ou hipótese)", st.session_state.dados['diagnostico'])
     val_rede = st.session_state.dados.get('rede_apoio', [])
     st.session_state.dados['rede_apoio'] = c_rede.multiselect("Rede de Apoio:", ["Psicólogo", "Fonoaudiólogo", "Neuropediatra", "TO", "Psicopedagogo", "AT"], default=val_rede, placeholder="Selecione...")
     
@@ -359,7 +383,7 @@ with tab2:
         uploaded_file = st.file_uploader("Upload do arquivo", type="pdf", key="uploader_tab2")
         if uploaded_file is not None:
             texto = ler_pdf(uploaded_file)
-            if texto: st.session_state.pdf_text = texto; st.success("✅ Laudo integrado à análise!")
+            if texto: st.session_state.pdf_text = texto; st.success("✅ Laudo integrado!")
 
 # 3. MAPEAMENTO
 with tab3:
@@ -368,13 +392,23 @@ with tab3:
     st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco (Interesse intenso)")
     st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", ["Memória Visual", "Tecnologia", "Artes", "Oralidade", "Lógica"], placeholder="Selecione...")
     
-    st.markdown("### <i class='ri-barricade-line'></i> Barreiras", unsafe_allow_html=True)
+    st.markdown("### <i class='ri-barricade-line'></i> Barreiras & Suporte", unsafe_allow_html=True)
+    
+    # SLIDERS ESTÃO AQUI! (COM VISUAL CLEAN)
     with st.expander("👁️ Sensorial e Físico", expanded=True):
         st.session_state.dados['b_sensorial'] = st.multiselect("Barreiras:", ["Hipersensibilidade", "Busca Sensorial", "Seletividade", "Motora"], key="b_sens", placeholder="Selecione...")
+        st.write("Nível de Suporte Necessário:")
+        st.session_state.dados['sup_sensorial'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_sens")
+        
     with st.expander("🧠 Cognitivo"):
-        st.session_state.dados['b_cognitiva'] = st.multiselect("Barreiras:", ["Atenção Dispersa", "Memória Curta", "Rigidez Mental", "Lentidão Processamento", "Dificuldade Abstração"], key="b_cog", placeholder="Selecione...")
+        st.session_state.dados['b_cognitiva'] = st.multiselect("Barreiras:", ["Atenção Dispersa", "Memória Curta", "Rigidez Mental", "Lentidão", "Abstração"], key="b_cog", placeholder="Selecione...")
+        st.write("Nível de Suporte Necessário:")
+        st.session_state.dados['sup_cognitiva'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_cog")
+        
     with st.expander("❤️ Social"):
-        st.session_state.dados['b_social'] = st.multiselect("Barreiras:", ["Isolamento", "Baixa Tolerância Frustração", "Interpretação Literal", "Ansiedade Social"], key="b_soc", placeholder="Selecione...")
+        st.session_state.dados['b_social'] = st.multiselect("Barreiras:", ["Isolamento", "Baixa Tolerância", "Interpretação Literal", "Ansiedade"], key="b_soc", placeholder="Selecione...")
+        st.write("Nível de Suporte Necessário:")
+        st.session_state.dados['sup_social'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_soc")
 
 # 4. PLANO DE AÇÃO
 with tab4:
@@ -421,42 +455,27 @@ with tab5:
         else:
             st.info("O parecer técnico aparecerá aqui após o processamento.")
 
-# 6. DOCUMENTO (BOTÕES EMPILHADOS À ESQUERDA)
+# 6. DOCUMENTO
 with tab6:
     st.markdown("<div style='text-align:center; padding: 30px;'>", unsafe_allow_html=True)
-    
     if st.session_state.dados['nome']:
-        # Layout: Botões na esquerda (coluna estreita), Espaço vazio na direita
         c_btn, c_info = st.columns([1, 3])
-        
         with c_btn:
             docx = gerar_docx_final(st.session_state.dados)
-            # Botão Secundário (Outline) - Word
-            st.download_button(
-                label="📥 Baixar em Word",
-                data=docx,
-                file_name=f"PEI_{st.session_state.dados['nome']}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                type="secondary"
-            )
-            
-            st.write("") # Espaçamento visual
-            
+            st.download_button("📥 Baixar em Word", docx, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", type="secondary")
+            st.write("")
             pdf = gerar_pdf_nativo(st.session_state.dados)
-            # Botão Primário (Sólido) - PDF
-            st.download_button(
-                label="📄 Baixar em PDF",
-                data=pdf,
-                file_name=f"PEI_{st.session_state.dados['nome']}.pdf",
-                mime="application/pdf",
-                type="primary"
-            )
-        
+            st.download_button("📄 Baixar em PDF", pdf, f"PEI_{st.session_state.dados['nome']}.pdf", "application/pdf", type="primary")
         with c_info:
-            st.success("✅ Seu PEI está pronto!")
-            st.markdown("Utilize o formato **Word** se precisar fazer edições manuais posteriores, ou **PDF** para arquivamento oficial seguro.")
-            
+            st.success("✅ Documento Gerado com Sucesso!")
+            st.markdown("Selecione o formato ideal para sua necessidade: **Word** para editar ou **PDF** para arquivar.")
     else:
         st.warning("Preencha o nome do estudante para liberar os downloads.")
-    
     st.markdown("</div>", unsafe_allow_html=True)
+
+# --- RODAPÉ ---
+st.markdown("""
+<div style="text-align: center; margin-top: 50px; color: #A0AEC0; font-size: 0.85rem;">
+    Criado e desenvolvido por Rodrigo Queiroz
+</div>
+""", unsafe_allow_html=True)
