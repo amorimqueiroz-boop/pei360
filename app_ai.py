@@ -25,47 +25,48 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL REFINADO (CSS) ---
+# --- ESTILO VISUAL CORAL & BLUE (ARCO PALETTE) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-    /* 1. GLOBAL */
+    /* 1. GLOBAL & CORES */
     html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2D3748; }
-    :root { --brand-primary: #004E92; --bg-light: #F7FAFC; --card-shadow: 0 4px 6px rgba(0,0,0,0.03); }
+    :root { 
+        --brand-blue: #004E92;      /* Azul Institucional */
+        --brand-coral: #FF6B6B;     /* Coral de Destaque/Ação */
+        --bg-light: #F7FAFC; 
+        --card-shadow: 0 4px 6px rgba(0,0,0,0.04);
+    }
     
-    /* 2. HEADER */
+    /* 2. HEADER (AGORA É UM CARD IGUAL AOS OUTROS) */
     .header-container {
-        padding: 20px; background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%);
-        border-radius: 16px; border-left: 8px solid var(--brand-primary);
-        box-shadow: var(--card-shadow); margin-bottom: 25px;
+        padding: 25px; 
+        background: #FFFFFF; /* Fundo Branco Puro */
+        border-radius: 20px; 
+        border: 1px solid #EDF2F7; 
+        border-left: 8px solid var(--brand-blue); /* Detalhe Azul */
+        box-shadow: var(--card-shadow); 
+        margin-bottom: 30px;
         display: flex; align-items: center; gap: 25px;
     }
     
-    /* 3. ABAS (CORRIGIDO: COMPACTAS E ELEGANTES) */
+    /* 3. ABAS (CORAL QUANDO SELECIONADO) */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px; background-color: transparent; padding: 10px 0;
-        justify-content: flex-start; /* Alinha à esquerda, não estica */
-        flex-wrap: wrap;
+        gap: 10px; background-color: transparent; padding: 10px 0;
+        justify-content: flex-start; flex-wrap: wrap;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 40px; /* Mais baixo/delicado */
-        background-color: #FFFFFF;
-        border-radius: 20px;
-        border: 1px solid #CBD5E0;
-        color: #4A5568;
-        padding: 0 20px;
-        font-weight: 700;
-        font-size: 0.85rem;
-        flex-grow: 0; /* IMPORTANTE: Não estica para preencher espaço */
-        transition: all 0.2s ease;
+        height: 42px; background-color: #FFFFFF; border-radius: 20px;
+        border: 1px solid #CBD5E0; color: #4A5568; padding: 0 20px;
+        font-weight: 700; font-size: 0.9rem; flex-grow: 0; transition: all 0.2s ease;
     }
     .stTabs [aria-selected="true"] {
-        background-color: var(--brand-primary) !important;
+        background-color: var(--brand-coral) !important; /* CORAL AQUI */
         color: white !important;
-        border-color: var(--brand-primary) !important;
-        box-shadow: 0 4px 8px rgba(0, 78, 146, 0.25);
+        border-color: var(--brand-coral) !important;
+        box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
     }
 
     /* 4. CARDS (ICON BUBBLE UNIFICADO) */
@@ -75,42 +76,60 @@ st.markdown("""
         height: 100%; transition: all 0.3s ease;
         display: flex; flex-direction: column; align-items: flex-start;
     }
-    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.06); }
+    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.06); border-color: var(--brand-blue); }
     
     .icon-box {
-        width: 42px; height: 42px; background: #E3F2FD; border-radius: 12px;
+        width: 45px; height: 45px; 
+        background: #E3F2FD; /* Fundo azul bem clarinho */
+        border-radius: 12px;
         display: flex; align-items: center; justify-content: center; margin-bottom: 15px; flex-shrink: 0;
     }
-    .icon-box i { font-size: 20px; color: var(--brand-primary); }
+    .icon-box i { font-size: 22px; color: var(--brand-blue); }
     
-    .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.05rem; margin-bottom: 8px; line-height: 1.3; }
-    .feature-card p { font-size: 0.9rem; color: #718096; line-height: 1.5; margin: 0; }
+    .feature-card h4 { color: var(--brand-blue); font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; line-height: 1.3; }
+    .feature-card p { font-size: 0.95rem; color: #718096; line-height: 1.5; margin: 0; }
 
-    /* 5. INPUTS & BOTÕES */
+    /* 5. INPUTS & BOTÕES (CORAL NOS BOTÕES) */
     .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         border-radius: 12px !important; border: 1px solid #CBD5E0 !important;
     }
     .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: var(--brand-primary) !important; box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
+        border-color: var(--brand-blue) !important; box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
     }
-    .stButton > button {
-        background-color: var(--brand-primary) !important; color: white !important;
-        border-radius: 12px !important; border: none !important; font-weight: 700 !important;
-        height: 3.2em !important; width: 100%; transition: 0.3s !important;
+    
+    /* Botão Primário = CORAL */
+    div[data-testid="column"] .stButton button[kind="primary"] {
+        background-color: var(--brand-coral) !important; 
+        color: white !important;
+        border: none !important; border-radius: 12px !important; font-weight: 700 !important;
+        height: 3.5em !important; width: 100%; transition: 0.3s !important;
     }
+    div[data-testid="column"] .stButton button[kind="primary"]:hover {
+        background-color: #E53E3E !important; transform: scale(1.02) !important;
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3) !important;
+    }
+
+    /* Botão Secundário = OUTLINE AZUL */
     div[data-testid="column"] .stButton button[kind="secondary"] {
-        background-color: transparent !important; color: var(--brand-primary) !important;
-        border: 2px solid var(--brand-primary) !important;
+        background-color: transparent !important; color: var(--brand-blue) !important;
+        border: 2px solid var(--brand-blue) !important; border-radius: 12px !important; 
+        font-weight: 700 !important; height: 3.5em !important; width: 100%;
     }
+    div[data-testid="column"] .stButton button[kind="secondary"]:hover {
+        background-color: #EBF8FF !important;
+    }
+
+    /* Tags do Multiselect (Azul suave para não brigar) */
     span[data-baseweb="tag"] { background-color: #EBF8FF !important; border: 1px solid #90CDF4 !important; }
     span[data-baseweb="tag"] span { color: #004E92 !important; }
     
     /* Upload & Mobile */
     div[data-testid="stFileUploader"] section { background-color: #F8FAFC; border: 1px dashed #A0AEC0; }
+    
     @media (max-width: 768px) {
         .header-container { flex-direction: column; text-align: center; gap: 15px; }
         .header-text { border-left: none !important; padding-left: 0 !important; border-top: 1px solid #CBD5E0; padding-top: 10px; width: 100%; }
-        .stTabs [data-baseweb="tab"] { flex-grow: 1; /* No celular, aí sim estica para facilitar o toque */ }
+        .stTabs [data-baseweb="tab"] { flex-grow: 1; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -147,49 +166,38 @@ def limpar_para_pdf(texto):
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
     texto = texto.replace('* ', '• ')
-    # Remove caracteres estranhos mas mantêm acentos
     texto = re.sub(r'[^\x00-\x7F\xA0-\xFF]', '', texto) 
     return texto
 
-# --- INTELIGÊNCIA (PROMPT CORRIGIDO) ---
+# --- INTELIGÊNCIA (PROMPT OTIMIZADO) ---
 def consultar_ia(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ A chave de API não foi detectada."
     try:
         client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         serie = dados['serie'] if dados['serie'] else ""
-        
         foco_bncc = "Campos de Experiência" if "Infantil" in serie else "Habilidades Essenciais"
 
-        # PROMPT REFINADO: ORDEM NEGATIVA PARA EVITAR REDUNDÂNCIA
+        # COMANDO RESTRITIVO PARA EVITAR REDUNDÂNCIA
         prompt_sistema = """
-        Você é um Especialista Sênior em Inclusão e Neurociência.
-        Sua tarefa é gerar um PARECER TÉCNICO ESTRATÉGICO e DIRETO.
-        
-        REGRAS DE OURO:
-        1. NÃO REPITAS os dados de identificação (Nome, Idade, Diagnóstico) no início. O documento já tem cabeçalho.
-        2. Inicie diretamente com a análise.
-        3. Use linguagem técnica mas acessível aos professores.
+        Você é um Especialista em Inclusão. GERE APENAS O CONTEÚDO TÉCNICO.
+        NÃO COLOQUE TÍTULOS GERAIS (Ex: "Parecer Técnico").
+        NÃO REPITA O NOME, IDADE OU DIAGNÓSTICO DO ALUNO (Isso já está no cabeçalho).
+        Vá direto ao ponto.
         """
         
         contexto_extra = f"\n📄 LAUDO:{contexto_pdf[:3000]}" if contexto_pdf else ""
         nasc_str = str(dados.get('nasc', ''))
         
         prompt_usuario = f"""
-        Aluno: {dados['nome']} | Série: {serie} | Diag: {dados['diagnostico']} | Hiperfoco: {dados['hiperfoco']}
+        Estudante: {dados['nome']} | Série: {serie} | Diag: {dados['diagnostico']} | Hiperfoco: {dados['hiperfoco']}
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
-        Estratégias da Escola: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
+        Estratégias: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
         {contexto_extra}
         
-        GERE O TEXTO SEGUINDO ESTA ESTRUTURA (Sem repetir nome/idade):
-        
-        1. ANÁLISE NEUROFUNCIONAL
-        (Explique como o cérebro deste aluno aprende melhor usando o Hiperfoco como alavanca e as barreiras identificadas).
-        
-        2. CONEXÃO COM A BNCC ({foco_bncc})
-        (Cite 1 objetivo de aprendizagem central da série e como ele deve ser flexibilizado na prática).
-        
-        3. RECOMENDAÇÕES AO PROFESSOR
-        (Valide as estratégias escolhidas e sugira uma rotina prática de sala de aula).
+        Escreva 3 parágrafos técnicos e práticos:
+        1. ANÁLISE NEUROFUNCIONAL: Como o perfil cognitivo impacta a aprendizagem e como o Hiperfoco ajuda.
+        2. ESTRATÉGIA BNCC ({foco_bncc}): Selecione um objetivo da série e mostre a adaptação.
+        3. ROTINA DE SALA: Recomendações práticas para o professor amanhã.
         """
         response = client.chat.completions.create(
             model="deepseek-chat",
@@ -208,7 +216,10 @@ class PDF(FPDF):
             x = 40
         else: x = 10
         self.set_font('Arial', 'B', 16); self.set_text_color(0, 78, 146)
-        self.cell(x); self.cell(0, 10, 'PEI - PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'C'); self.ln(5)
+        self.cell(x)
+        # TÍTULO LIMPO
+        self.cell(0, 10, 'PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'C')
+        self.ln(5)
     def footer(self):
         self.set_y(-15); self.set_font('Arial', 'I', 8); self.set_text_color(128)
         self.cell(0, 10, f'Página {self.page_no()} | Documento Confidencial', 0, 0, 'C')
@@ -247,9 +258,9 @@ def gerar_pdf_nativo(dados):
     if dados['ia_sugestao']:
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0, 78, 146)
+        # O PYTHON GERA O TÍTULO, A IA GERA O CONTEÚDO
         pdf.cell(0, 10, txt("3. PARECER TÉCNICO PEDAGÓGICO"), 0, 1)
         pdf.set_font("Arial", size=11); pdf.set_text_color(50)
-        # Limpa o texto da IA para evitar problemas de codificação
         conteudo_ia = limpar_para_pdf(dados['ia_sugestao'])
         pdf.multi_cell(0, 6, txt(conteudo_ia))
 
@@ -259,7 +270,8 @@ def gerar_pdf_nativo(dados):
 
 def gerar_docx_final(dados):
     doc = Document(); style = doc.styles['Normal']; style.font.name = 'Arial'; style.font.size = Pt(11)
-    doc.add_heading('PEI - PLANO DE ENSINO INDIVIDUALIZADO', 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # TÍTULO LIMPO NO WORD
+    doc.add_heading('PLANO DE ENSINO INDIVIDUALIZADO', 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph(f"Nome: {dados['nome']} | Série: {dados['serie']}")
     
     doc.add_heading('Estratégias', level=1)
@@ -295,9 +307,9 @@ with st.sidebar:
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']; st.success("✅ Chave Segura")
     else: api_key = st.text_input("Chave API:", type="password")
-    st.markdown("---"); st.info("Versão 21.0 | Diamond Polish")
+    st.markdown("---"); st.info("Versão 2.17 | Coral Edition")
 
-# --- CABEÇALHO ---
+# --- CABEÇALHO (AGORA ESTILO CARD BRANCO) ---
 logo = finding_logo()
 header_html = ""
 if logo:
@@ -323,6 +335,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 with tab1:
     st.markdown("### <i class='ri-dashboard-line'></i> Ecossistema de Inclusão", unsafe_allow_html=True)
     st.write("")
+    
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("""
@@ -465,7 +478,7 @@ with tab5:
         st.caption(f"Contexto: {status}")
         
         if st.button("✨ Gerar Parecer do Especialista", type="primary"):
-            if not st.session_state.dados['nome']: st.warning("Preencha o nome do estudante.")
+            if not st.session_state.dados['nome']: st.warning("Preencha o nome.")
             else:
                 with st.spinner("Analisando BNCC e Neurociência..."):
                     res, err = consultar_ia(api_key, st.session_state.dados, st.session_state.pdf_text)
@@ -490,6 +503,7 @@ with tab6:
         c_btn, c_info = st.columns([1, 3])
         with c_btn:
             docx = gerar_docx_final(st.session_state.dados)
+            # CORAL AQUI TAMBÉM? NÃO, AQUI MANTEMOS O PADRÃO WORD/PDF
             st.download_button("📥 Baixar em Word", docx, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", type="secondary")
             st.write("")
             pdf = gerar_pdf_nativo(st.session_state.dados)
@@ -504,6 +518,6 @@ with tab6:
 # --- RODAPÉ ---
 st.markdown("""
 <div style="text-align: center; margin-top: 50px; color: #A0AEC0; font-size: 0.85rem; border-top: 1px solid #E2E8F0; padding-top: 20px;">
-    Criado e desenvolvido por Rodrigo Queiroz
+    Criado e desenvolvido por Rodrigo Queiroz | Versão 2.17
 </div>
 """, unsafe_allow_html=True)
