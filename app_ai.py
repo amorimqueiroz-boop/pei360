@@ -8,16 +8,18 @@ from openai import OpenAI
 from pypdf import PdfReader
 from fpdf import FPDF
 import re
+import base64
+import os
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="PEI 360º | Sistema Inclusivo",
-    page_icon="💙",
+    page_icon="🌀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL (CLEAN & PROFISSIONAL) ---
+# --- ESTILO VISUAL ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -25,19 +27,14 @@ st.markdown("""
     
     :root { --main-blue: #004e92; --bg-light: #F7FAFC; }
     
-    /* Inputs refinados */
     .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         border-radius: 8px !important; border: 1px solid #CBD5E0 !important;
     }
     
-    /* Área de Upload Destacada */
     div[data-testid="stFileUploader"] section { 
-        background-color: #EBF8FF; 
-        border: 2px dashed #004e92;
-        border-radius: 10px;
+        background-color: #EBF8FF; border: 2px dashed #004e92; border-radius: 10px;
     }
 
-    /* Cards Informativos */
     .info-card {
         background-color: white; padding: 20px; border-radius: 12px;
         border-left: 5px solid var(--main-blue);
@@ -45,7 +42,6 @@ st.markdown("""
     }
     .info-card h4 { color: var(--main-blue); margin-bottom: 8px; font-weight: 700; }
     
-    /* Botões */
     .stButton>button {
         background-color: var(--main-blue); color: white; border-radius: 8px;
         font-weight: 600; height: 3em; width: 100%; border: none; transition: all 0.3s;
@@ -67,25 +63,28 @@ def ler_pdf(arquivo):
         return f"Erro ao ler PDF: {e}"
 
 def limpar_markdown(texto):
-    """Limpa formatação para o WORD (Mantém emojis, tira negrito markdown)"""
+    """Limpa para WORD (Mantém acentos e emojis)"""
     if not texto: return ""
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
     return texto
 
 def limpar_para_pdf(texto):
-    """Limpa formatação para o PDF (REMOVE EMOJIS e Markdown)"""
+    """Limpa para PDF (Remove emojis e caracteres especiais que viram ??)"""
     if not texto: return ""
-    # 1. Remove Markdown
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
     texto = texto.replace('* ', '• ')
-    
-    # 2. Remove Emojis (Regex para tirar caracteres fora do padrão Latin-1)
-    # Isso evita os "???" no PDF
+    # Remove emojis e caracteres fora do padrão Latin-1
     texto = re.sub(r'[^\x00-\x7F\xA0-\xFF]', '', texto) 
-    
     return texto
+
+def get_base64_image(image_path):
+    """Converte imagem local para Base64 (para exibir no HTML)"""
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    return ""
 
 # --- INTELIGÊNCIA (DEEPSEEK V3) ---
 def consultar_ia(api_key, dados, contexto_pdf=""):
@@ -96,10 +95,9 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         prompt_sistema = """
         Você é um Especialista em Inclusão Escolar.
         Base: LBI 13.146 + Neurociência.
-        Se houver laudo anexo, use-o.
         """
         
-        contexto_extra = f"\n📄 RESUMO DO LAUDO ANEXADO:\n{contexto_pdf[:3000]}" if contexto_pdf else ""
+        contexto_extra = f"\n📄 RESUMO DO LAUDO:\n{contexto_pdf[:3000]}" if contexto_pdf else ""
         
         prompt_usuario = f"""
         Aluno: {dados['nome']} ({dados['serie']})
@@ -111,10 +109,10 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
         Estratégias: {', '.join(dados['estrategias_acesso'] + dados['estrategias_curriculo'])}
         
-        GERE UM PARECER TÉCNICO ESTRUTURADO (Sem usar Markdown):
+        GERE UM PARECER TÉCNICO (Sem Markdown complexo):
         1. Conexão Neural (Uso do Hiperfoco).
         2. Análise do Contexto/Laudo.
-        3. Sugestões Práticas de Adaptação.
+        3. Sugestões Práticas.
         """
         
         response = client.chat.completions.create(
@@ -126,22 +124,26 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
     except Exception as e:
         return None, f"Erro DeepSeek: {str(e)}"
 
-# --- GERADOR PDF (GENÉRICO E LIMPO) ---
+# --- GERADOR PDF (WHITE LABEL & LIMPO) ---
 class PDF(FPDF):
     def header(self):
-        # Tenta carregar logo (Genérica ou Arco se desejar, aqui deixei sem para ser genérico)
-        # Se quiser logo, descomente a linha abaixo:
-        # self.image('https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Arco_Educa%C3%A7%C3%A3o_logo.png/640px-Arco_Educa%C3%A7%C3%A3o_logo.png', x=10, y=8, w=30)
-        
+        # Tenta colocar a logo no PDF se ela existir
+        if os.path.exists("logo.png"):
+            self.image("logo.png", x=10, y=8, w=25)
+            
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 78, 146) 
-        self.cell(0, 10, 'PEI - PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'C') # Centralizado
+        # Título deslocado se tiver logo, ou centralizado se não tiver
+        x_title = 40 if os.path.exists("logo.png") else 0
+        self.cell(x_title) 
+        self.cell(0, 10, 'PEI - PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'C')
         self.ln(5)
 
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128)
+        # Rodapé Genérico (Sem nome de escola específica)
         self.cell(0, 10, f'Página {self.page_no()} | Documento Confidencial', 0, 0, 'C')
 
 def gerar_pdf_nativo(dados):
@@ -169,7 +171,7 @@ def gerar_pdf_nativo(dados):
     pdf.cell(0, 8, txt("Barreiras Identificadas:"), 0, 1)
     pdf.set_font("Arial", size=10)
     
-    # Limpa emojis das barreiras também (se houver)
+    # Limpa emojis para não dar erro (??)
     b_sens = limpar_para_pdf(', '.join(dados['b_sensorial']))
     b_cog = limpar_para_pdf(', '.join(dados['b_cognitiva']))
     b_soc = limpar_para_pdf(', '.join(dados['b_social']))
@@ -190,9 +192,7 @@ def gerar_pdf_nativo(dados):
 
     # 4. Parecer IA
     if dados['ia_sugestao']:
-        # AQUI ESTÁ A MÁGICA: Limpa emojis e markdown antes de ir para o PDF
         texto_limpo = limpar_para_pdf(dados['ia_sugestao'])
-        
         pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0, 78, 146)
         pdf.cell(0, 10, txt("4. PARECER DO ESPECIALISTA"), 0, 1)
         pdf.set_font("Arial", size=11); pdf.set_text_color(50)
@@ -226,9 +226,7 @@ def gerar_docx_final(dados):
 
     if dados['ia_sugestao']:
         doc.add_heading('3. CONSULTORIA ESPECIALISTA', level=1)
-        # Word aceita emojis, então limpamos só o markdown
-        texto_limpo = limpar_markdown(dados['ia_sugestao'])
-        doc.add_paragraph(texto_limpo)
+        doc.add_paragraph(limpar_markdown(dados['ia_sugestao']))
     
     buffer = BytesIO()
     doc.save(buffer)
@@ -247,11 +245,14 @@ if 'dados' not in st.session_state:
     }
 if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
 
-# --- SIDEBAR (CHAVE DE API) ---
+# --- SIDEBAR ---
 with st.sidebar:
-    # Logo pode ser mantida no app (visual), mas no PDF tiramos
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Arco_Educa%C3%A7%C3%A3o_logo.png/640px-Arco_Educa%C3%A7%C3%A3o_logo.png", width=140)
-    
+    # Tenta mostrar a logo na sidebar também
+    if os.path.exists("logo.png"):
+        st.image("logo.png", width=120)
+    else:
+        st.markdown("### PEI 360º")
+
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']
         st.success("✅ Chave Segura Ativada")
@@ -259,16 +260,24 @@ with st.sidebar:
         api_key = st.text_input("Chave API DeepSeek:", type="password")
     
     st.markdown("---")
-    st.info("Versão 7.3 | Multi-Escola")
+    st.info("Versão 7.4 | PEI 360º")
 
-# --- CABEÇALHO VISUAL ---
-st.markdown("""
-<div style="display: flex; align-items: center; padding: 15px 20px; background: linear-gradient(90deg, #F8FAFC 0%, #E3F2FD 100%); border-radius: 15px; border-left: 6px solid #004E92; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px;">
-    <span style="font-size: 3rem; margin-right: 15px;">🧠</span>
+# --- CABEÇALHO COM LOGO PERSONALIZADA (BASE64) ---
+# Converte a logo local para Base64 para exibir no HTML sem erros
+logo_html = ""
+img_b64 = get_base64_image("logo.png")
+if img_b64:
+    logo_html = f'<img src="data:image/png;base64,{img_b64}" style="height: 60px; margin-right: 15px; border-radius: 8px;">'
+else:
+    logo_html = '<span style="font-size: 3rem; margin-right: 15px;">🧠</span>'
+
+st.markdown(f"""
+<div style="display: flex; align-items: center; padding: 20px; background: linear-gradient(90deg, #FFFFFF 0%, #E3F2FD 100%); border-radius: 15px; border-left: 6px solid #004E92; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px;">
+    {logo_html}
     <div>
         <h1 style="color: #004E92; margin: 0; font-weight: 800; font-size: 2.2rem; letter-spacing: -1px; line-height: 1;">PEI 360º</h1>
         <p style="margin: 5px 0 0 0; color: #4A5568; font-weight: 500; font-size: 1rem;">
-            Sistema de Inclusão Inteligente 
+            Planejamento Educacional Individualizado
         </p>
     </div>
 </div>
@@ -279,7 +288,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 
 # 1. HOME
 with tab1:
-    st.markdown("### Bem-vindo ao Sistema de Inclusão Inteligente")
+    st.markdown("### Bem-vindo ao PEI 360º")
     c1, c2 = st.columns(2)
     with c1:
         st.markdown('<div class="info-card"><h4>📘 O que é o PEI?</h4><p>O Plano de Ensino Individualizado é a ferramenta oficial para eliminar barreiras. Ele transforma a matrícula em inclusão real.</p></div>', unsafe_allow_html=True)
@@ -288,112 +297,95 @@ with tab1:
         st.markdown('<div class="info-card"><h4>🧠 Neurociência</h4><p>Foco nas Funções Executivas. Entendemos como o cérebro do aluno aprende para propor o método certo.</p></div>', unsafe_allow_html=True)
         st.markdown('<div class="info-card"><h4>🤝 Escola & Família</h4><p>A colaboração é vital. Utilize os dados da escuta familiar para alinhar expectativas e criar vínculo.</p></div>', unsafe_allow_html=True)
 
-# 2. ALUNO (AGORA COM UPLOAD VISÍVEL)
+# 2. ALUNO
 with tab2:
-    st.info("Preencha os dados básicos e anexe documentos anteriores.")
+    st.info("Dados do estudante e documentos.")
     c1, c2 = st.columns(2)
-    st.session_state.dados['nome'] = c1.text_input("Nome do Estudante", st.session_state.dados['nome'], placeholder="Digite o nome completo")
+    st.session_state.dados['nome'] = c1.text_input("Nome do Estudante", st.session_state.dados['nome'])
     st.session_state.dados['serie'] = c2.selectbox("Série/Ano", ["Ed. Infantil", "1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "Ensino Médio"], index=None)
     
     st.markdown("---")
     c3, c4 = st.columns([1, 2])
-    st.session_state.dados['tem_laudo'] = c3.checkbox("Possui Laudo Médico?")
-    st.session_state.dados['diagnostico'] = c4.text_input("Diagnóstico ou Hipótese", st.session_state.dados['diagnostico'], placeholder="Ex: TEA, TDAH...")
+    st.session_state.dados['tem_laudo'] = c3.checkbox("Possui Laudo?")
+    st.session_state.dados['diagnostico'] = c4.text_input("Diagnóstico", st.session_state.dados['diagnostico'])
     
-    # --- ÁREA DE UPLOAD MOVIDA PARA CÁ ---
     st.write("")
-    st.markdown("##### 📂 Anexar Laudo ou Relatório Anterior (PDF)")
+    st.markdown("##### 📂 Anexar Laudo Anterior (PDF)")
     uploaded_file = st.file_uploader("Arraste o arquivo aqui para a IA ler", type="pdf", key="uploader_tab2")
     if uploaded_file is not None:
         texto_extraido = ler_pdf(uploaded_file)
         if texto_extraido:
             st.session_state.pdf_text = texto_extraido
-            st.success("✅ Documento Lido com Sucesso! A IA usará estas informações.")
-    # -------------------------------------
+            st.success("✅ Documento Lido!")
     
     st.markdown("---")
-    st.markdown("#### 📝 Contexto")
     ch, cf = st.columns(2)
     st.session_state.dados['historico'] = ch.text_area("Histórico Escolar", st.session_state.dados['historico'])
     st.session_state.dados['familia'] = cf.text_area("Escuta da Família", st.session_state.dados['familia'])
 
 # 3. MAPEAMENTO
 with tab3:
-    st.info("💡 Identifique as potências para superar as barreiras.")
     st.markdown("### 🚀 Potencialidades")
     c_pot1, c_pot2 = st.columns(2)
-    st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco (Interesse)", placeholder="O que o aluno AMA?")
-    st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", ["Memória Visual", "Tecnologia", "Artes/Desenho", "Oralidade", "Lógica", "Empatia"])
+    st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco (Interesse)")
+    st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", ["Memória Visual", "Tecnologia", "Artes", "Oralidade", "Lógica", "Empatia"])
     
-    st.markdown("---")
-    st.markdown("### 🚧 Barreiras e Nível de Suporte")
-    
+    st.markdown("### 🚧 Barreiras")
     with st.expander("👁️ Sensorial e Físico", expanded=True):
-        st.session_state.dados['b_sensorial'] = st.multiselect("Quais são as barreiras?", ["Hipersensibilidade", "Busca Sensorial", "Seletividade Alimentar", "Dificuldade Motora"], key="b_sens")
-        st.session_state.dados['sup_sensorial'] = st.select_slider("Suporte Sensorial:", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_sens")
+        st.session_state.dados['b_sensorial'] = st.multiselect("Barreiras:", ["Hipersensibilidade", "Busca Sensorial", "Seletividade", "Motora"], key="b_sens")
+        st.session_state.dados['sup_sensorial'] = st.select_slider("Suporte:", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_sens")
 
-    with st.expander("🧠 Cognitivo e Aprendizagem"):
-        st.session_state.dados['b_cognitiva'] = st.multiselect("Quais são as barreiras?", ["Atenção Dispersa", "Memória Curta", "Rigidez", "Lentidão", "Abstração"], key="b_cog")
-        st.session_state.dados['sup_cognitiva'] = st.select_slider("Suporte Cognitivo:", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_cog")
+    with st.expander("🧠 Cognitivo"):
+        st.session_state.dados['b_cognitiva'] = st.multiselect("Barreiras:", ["Atenção", "Memória", "Rigidez", "Lentidão", "Abstração"], key="b_cog")
+        st.session_state.dados['sup_cognitiva'] = st.select_slider("Suporte:", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_cog")
 
-    with st.expander("❤️ Social e Emocional"):
-        st.session_state.dados['b_social'] = st.multiselect("Quais são as barreiras?", ["Isolamento", "Baixa Frustração", "Interpretação Literal", "Ansiedade"], key="b_soc")
-        st.session_state.dados['sup_social'] = st.select_slider("Suporte Social:", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_soc")
+    with st.expander("❤️ Social"):
+        st.session_state.dados['b_social'] = st.multiselect("Barreiras:", ["Isolamento", "Frustração", "Literalidade", "Ansiedade"], key="b_soc")
+        st.session_state.dados['sup_social'] = st.select_slider("Suporte:", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_soc")
 
-# 4. PLANO DE AÇÃO
+# 4. ESTRATÉGIAS
 with tab4:
-    st.markdown("### ✅ Definição de Estratégias")
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("**Adaptações de Acesso (Meio)**")
-        st.session_state.dados['estrategias_acesso'] = st.multiselect("Recursos:", ["Tempo estendido", "Ledor/Escriba", "Material Ampliado", "Uso de Tablet", "Local Silencioso", "Pausas Ativas"])
+        st.markdown("**Adaptações de Acesso**")
+        st.session_state.dados['estrategias_acesso'] = st.multiselect("Recursos:", ["Tempo estendido", "Ledor/Escriba", "Material Ampliado", "Tablet", "Sala Silenciosa", "Pausas"])
     with c2:
-        st.markdown("**Adaptações Curriculares (Fim)**")
-        st.session_state.dados['estrategias_curriculo'] = st.multiselect("Estratégias:", ["Redução de Questões", "Prova Oral", "Mapa Mental", "Conteúdo Prioritário", "Atividade Prática"])
+        st.markdown("**Adaptações Curriculares**")
+        st.session_state.dados['estrategias_curriculo'] = st.multiselect("Estratégias:", ["Menos Questões", "Prova Oral", "Mapa Mental", "Conteúdo Prioritário", "Prática"])
 
-# 5. ASSISTENTE IA
+# 5. ASSISTENTE
 with tab5:
     col_ia_left, col_ia_right = st.columns([1, 2])
     with col_ia_left:
-        st.markdown("### 🤖 Olá, Parceiro Pedagógico!")
-        st.markdown("""
-        <div class="info-card" style="border-left: 5px solid #48BB78;">
-        <p>Estou pronto para atuar como seu Consultor Sênior. Vou analisar o mapeamento, o histórico e o <b>laudo anexado (se houver)</b>.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("### 🤖 Consultor Virtual")
+        st.info("Vou cruzar os dados do mapeamento com a LBI e Neurociência.")
         
-        status_pdf = "✅ Documento Anexado" if st.session_state.pdf_text else "⚪ Nenhum anexo"
-        
-        if st.button("✨ Gerar Parecer do Especialista"):
-            if not st.session_state.dados['nome']: st.warning("Preencha o nome do aluno.")
+        if st.button("✨ Gerar Parecer"):
+            if not st.session_state.dados['nome']: st.warning("Preencha o nome.")
             else:
-                with st.spinner("Analisando perfil neurofuncional..."):
+                with st.spinner("Processando..."):
                     res, err = consultar_ia(api_key, st.session_state.dados, st.session_state.pdf_text)
                     if err: st.error(err)
-                    else: st.session_state.dados['ia_sugestao'] = res; st.success("Consultoria realizada!")
-
-        st.write("")
-        with st.expander("⚙️ Detalhes técnicos"):
-            st.markdown(f"**Status Anexo:** {status_pdf}")
+                    else: st.session_state.dados['ia_sugestao'] = res; st.success("Pronto!")
 
     with col_ia_right:
-        st.markdown("### 💡 Parecer Técnico")
+        st.markdown("### 💡 Parecer")
         if st.session_state.dados['ia_sugestao']:
-            st.text_area("Sugestões do Assistente:", st.session_state.dados['ia_sugestao'], height=500)
+            st.text_area("Sugestões:", st.session_state.dados['ia_sugestao'], height=500)
         else:
-            st.info("O resultado da análise aparecerá aqui.")
+            st.markdown("O parecer aparecerá aqui.")
 
 # 6. DOCUMENTO
 with tab6:
     st.markdown("<div style='text-align:center; padding: 30px;'>", unsafe_allow_html=True)
     if st.session_state.dados['nome']:
-        c_doc1, c_doc2 = st.columns(2)
-        with c_doc1:
-            docx_file = gerar_docx_final(st.session_state.dados)
-            st.download_button("📥 Baixar PEI Editável (.docx)", docx_file, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        with c_doc2:
-            pdf_bytes = gerar_pdf_nativo(st.session_state.dados)
-            st.download_button("📄 Baixar PEI Oficial (.pdf)", pdf_bytes, f"PEI_{st.session_state.dados['nome']}.pdf", "application/pdf")
+        c1, c2 = st.columns(2)
+        with c1:
+            docx = gerar_docx_final(st.session_state.dados)
+            st.download_button("📥 Baixar Word (.docx)", docx, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        with c2:
+            pdf = gerar_pdf_nativo(st.session_state.dados)
+            st.download_button("📄 Baixar PDF Oficial", pdf, f"PEI_{st.session_state.dados['nome']}.pdf", "application/pdf")
     else:
-        st.warning("Preencha os dados do aluno para liberar os downloads.")
+        st.warning("Preencha o nome do aluno.")
     st.markdown("</div>", unsafe_allow_html=True)
