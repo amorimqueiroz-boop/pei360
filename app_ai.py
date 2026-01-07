@@ -7,9 +7,9 @@ from docx.shared import Pt
 from openai import OpenAI
 from pypdf import PdfReader
 from fpdf import FPDF
-import re
 import base64
 import os
+import re
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -19,125 +19,94 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO VISUAL PREMIUM (ICON BUBBLES) ---
+# --- ESTILO VISUAL (CSS BLINDADO) ---
+# Importante: O CSS está separado para não causar erros de renderização
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
+    /* 1. GLOBAL */
     html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2D3748; }
-    :root { 
-        --brand-primary: #004E92; 
-        --brand-light: #E3F2FD;
-        --brand-accent: #00796B;
-    }
+    :root { --brand-primary: #004E92; --bg-light: #F7FAFC; }
     
-    /* INPUTS & CONTROLES */
+    /* 2. ABAS (PILL NAVIGATION REFINADA) */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px; background-color: transparent; padding: 10px 0;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        background-color: #FFFFFF;
+        border-radius: 30px; /* Mais arredondado */
+        border: 1px solid #CBD5E0;
+        color: #4A5568;
+        padding: 0 20px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: var(--brand-primary) !important;
+        color: white !important;
+        border-color: var(--brand-primary) !important;
+        box-shadow: 0 4px 10px rgba(0, 78, 146, 0.3);
+    }
+
+    /* 3. INPUTS & CONTROLES (SEM VERMELHO) */
     .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         border-radius: 12px !important; border: 1px solid #CBD5E0 !important;
     }
     .stTextInput input:focus, .stTextArea textarea:focus {
         border-color: var(--brand-primary) !important;
-        box-shadow: 0 0 0 1px var(--brand-primary) !important;
+        box-shadow: 0 0 0 2px rgba(0, 78, 146, 0.2) !important;
     }
-    
-    /* REMOVER VERMELHO DO MULTISELECT */
+    /* Tags do Multiselect */
     span[data-baseweb="tag"] {
-        background-color: #E3F2FD !important; border: 1px solid #90CDF4 !important;
+        background-color: #EBF8FF !important; border: 1px solid #90CDF4 !important;
     }
     span[data-baseweb="tag"] span { color: #004E92 !important; }
 
-    /* CARD DESIGN 3.0 (ICON BUBBLE) */
+    /* 4. CARDS (ICON BUBBLE) */
     .feature-card {
-        background: white;
-        padding: 25px;
-        border-radius: 20px;
-        border: 1px solid #EDF2F7;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03);
-        height: 100%;
-        transition: all 0.3s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
+        background: white; padding: 25px; border-radius: 20px;
+        border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        height: 100%; transition: all 0.3s ease;
     }
-    .feature-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
-        border-color: var(--brand-light);
-    }
+    .feature-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); }
     
-    /* A Bolha do Ícone */
     .icon-box {
-        width: 50px; height: 50px;
-        background: var(--brand-light);
-        border-radius: 12px;
-        display: flex; align-items: center; justify-content: center;
-        margin-bottom: 15px;
+        width: 45px; height: 45px; background: #E3F2FD; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center; margin-bottom: 15px;
     }
-    .icon-box i {
-        font-size: 24px;
-        color: var(--brand-primary);
-    }
+    .icon-box i { font-size: 22px; color: var(--brand-primary); }
     
-    .feature-card h4 {
-        color: #1A202C;
-        font-weight: 800;
-        font-size: 1.1rem;
-        margin-bottom: 8px;
-    }
-    .feature-card p {
-        font-size: 0.95rem;
-        color: #718096;
-        line-height: 1.6;
-        margin: 0;
-    }
+    .feature-card h4 { color: #1A202C; font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; }
+    .feature-card p { font-size: 0.95rem; color: #718096; line-height: 1.6; margin: 0; }
 
-    /* HEADER */
-    .header-container {
-        padding: 25px;
-        background: linear-gradient(120deg, #FFFFFF 0%, #F0F4F8 100%);
-        border-radius: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-        margin-bottom: 30px;
-        display: flex; align-items: center; flex-wrap: wrap; gap: 20px;
-        border: 1px solid #EDF2F7;
-    }
-
-    /* BOTÕES AZUIS */
+    /* 5. BOTÕES (AZUL FORÇADO) */
     .stButton > button {
-        background-color: var(--brand-primary) !important;
-        color: white !important;
-        border-radius: 12px !important;
-        border: none !important;
-        font-weight: 700 !important;
-        height: 3.5em !important;
-        transition: all 0.3s !important;
+        background-color: var(--brand-primary) !important; color: white !important;
+        border-radius: 12px !important; border: none !important; font-weight: 700 !important;
+        height: 3.2em !important; transition: 0.3s !important;
     }
     .stButton > button:hover {
-        background-color: #003a6e !important;
-        box-shadow: 0 4px 12px rgba(0, 78, 146, 0.3) !important;
-        transform: translateY(-2px) !important;
+        background-color: #003a6e !important; transform: scale(1.02) !important;
     }
-    /* Botão Secundário (Outline) */
+    /* Botão Secundário */
     div[data-testid="column"] .stButton button[kind="secondary"] {
-        background-color: transparent !important;
-        color: var(--brand-primary) !important;
+        background-color: transparent !important; color: var(--brand-primary) !important;
         border: 2px solid var(--brand-primary) !important;
-        box-shadow: none !important;
     }
 
-    /* SLIDERS */
-    div[data-baseweb="slider"] div { background-color: var(--brand-primary) !important; }
+    /* 6. CORREÇÃO SLIDER (Barra nativa limpa) */
+    /* Removemos o CSS agressivo que pintava tudo de azul */
     
-    /* MOBILE */
-    @media (max-width: 640px) {
-        .header-container { flex-direction: column; text-align: center; }
-        .header-text { border-left: none !important; padding-left: 0 !important; }
-    }
+    /* 7. UPLOAD */
+    div[data-testid="stFileUploader"] section { background-color: #F8FAFC; border: 1px dashed #A0AEC0; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES UTILITÁRIAS ---
 def encontrar_arquivo_logo():
     possiveis_nomes = ["360.png", "360.jpg", "logo.png", "logo.jpg"]
     for nome in possiveis_nomes:
@@ -178,8 +147,11 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
     try:
         client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         serie = dados['serie'] if dados['serie'] else ""
-        foco_bncc = "Campos de Experiência" if "Infantil" in serie else "Habilidades Essenciais"
-        
+        if "Infantil" in serie:
+            foco_bncc = "Campos de Experiência e Objetivos de Aprendizagem"
+        else:
+            foco_bncc = "Habilidades Essenciais (Códigos Alfanuméricos)"
+
         prompt_sistema = "Você é um Coordenador Pedagógico Especialista em Inclusão e BNCC."
         contexto_extra = f"\n📄 LAUDO:{contexto_pdf[:3000]}" if contexto_pdf else ""
         nasc_str = str(dados.get('nasc', ''))
@@ -191,7 +163,7 @@ def consultar_ia(api_key, dados, contexto_pdf=""):
         Barreiras: {', '.join(dados['b_sensorial'] + dados['b_cognitiva'] + dados['b_social'])}
         Estratégias: {', '.join(dados['estrategias_acesso'] + dados['estrategias_ensino'])}
         
-        GERE UM PARECER TÉCNICO:
+        GERE UM PARECER TÉCNICO (Formato Texto Limpo):
         1. CONEXÃO NEURAL: Uso do Hiperfoco.
         2. FOCO BNCC ({foco_bncc}): 1 objetivo adaptado.
         3. AJUSTE FINO: Validação das estratégias.
@@ -265,13 +237,12 @@ if 'dados' not in st.session_state:
         'b_sensorial': [], 'sup_sensorial': '🟡 Monitorado',
         'b_cognitiva': [], 'sup_cognitiva': '🟡 Monitorado',
         'b_social': [], 'sup_social': '🟡 Monitorado',
-        'estrategias_acesso': [], 'meta_acesso': '',
-        'estrategias_ensino': [], 'meta_ensino': '',
-        'estrategias_avaliacao': [], 'meta_avaliacao': '',
+        'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [],
         'ia_sugestao': ''
     }
-for k in ['estrategias_ensino', 'estrategias_avaliacao', 'meta_acesso', 'meta_ensino', 'meta_avaliacao', 'rede_apoio']:
-    if k not in st.session_state.dados: st.session_state.dados[k] = [] if 'estrategias' in k or 'rede' in k else ''
+# Patch de segurança
+for k in ['estrategias_ensino', 'estrategias_avaliacao', 'rede_apoio']:
+    if k not in st.session_state.dados: st.session_state.dados[k] = []
 if 'nasc' not in st.session_state.dados: st.session_state.dados['nasc'] = None
 if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
 
@@ -282,81 +253,80 @@ with st.sidebar:
     if 'DEEPSEEK_API_KEY' in st.secrets:
         api_key = st.secrets['DEEPSEEK_API_KEY']; st.success("✅ Chave Segura")
     else: api_key = st.text_input("Chave API:", type="password")
-    st.markdown("---"); st.info("Versão 17.5 | UX Ultimate")
+    st.markdown("---"); st.info("Versão 18.0 | Platinum Stable")
 
-# --- CABEÇALHO ---
+# --- CABEÇALHO (HTML PURO / SEM ERROS) ---
 logo = encontrar_arquivo_logo()
+header_html = ""
 if logo:
     mime = "image/png" if logo.lower().endswith("png") else "image/jpeg"
     b64 = get_base64_image(logo)
+    # Lógica simples de concatenação de string para evitar erros de CSS
     header_html = f"""
-    <div class="header-container">
-        <img src="data:{mime};base64,{b64}" style="max-height: 85px; width: auto; object-fit: contain;">
-        <div class="header-text" style="border-left: 2px solid #CBD5E0; padding-left: 20px;">
-            <p style="margin: 0; color: #4A5568; font-weight: 500; font-size: 1.1rem;">
-                Planejamento Educacional Individualizado
-            </p>
+    <div style="padding: 20px; background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%); border-radius: 16px; border-left: 8px solid #004E92; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; align-items: center; gap: 20px;">
+        <img src="data:{mime};base64,{b64}" style="max-height: 80px; width: auto;">
+        <div style="border-left: 2px solid #CBD5E0; padding-left: 20px;">
+            <p style="margin: 0; color: #4A5568; font-weight: 600; font-size: 1.1rem;">Planejamento Educacional Individualizado</p>
         </div>
     </div>
     """
 else:
-    header_html = '<div class="header-container"><i class="ri-global-line" style="font-size: 3.5rem; color: #004E92;"></i><div><h1 style="color: #004E92; margin: 0;">PEI 360º</h1></div></div>'
-
+    header_html = """
+    <div style="padding: 20px; background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%); border-radius: 16px; border-left: 8px solid #004E92; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; align-items: center; gap: 20px;">
+        <h1 style="color: #004E92; margin: 0;">PEI 360º</h1>
+    </div>
+    """
 st.markdown(header_html, unsafe_allow_html=True)
 
 # ABAS
 abas = ["Início", "Estudante", "Mapeamento", "Plano de Ação", "Assistente de IA", "Documento"]
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 
-# 1. HOME (CARDS SEM NÚMERO E COM ÍCONE BUBBLE)
+# 1. HOME
 with tab1:
     st.markdown("### <i class='ri-dashboard-line'></i> Ecossistema de Inclusão", unsafe_allow_html=True)
     st.write("")
     
-    # LINHA 1
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("""
         <div class="feature-card">
             <div class="icon-box"><i class="ri-book-open-line"></i></div>
             <h4>O que é o PEI?</h4>
-            <p>O PEI não é burocracia, é <b>acessibilidade</b>. É o documento que oficializa como a escola vai flexibilizar o ensino para que o estudante aprenda do seu jeito.</p>
+            <p>O PEI não é burocracia, é <b>acessibilidade</b>. É o documento oficial que registra como a escola flexibiliza o ensino para o estudante.</p>
         </div>
         """, unsafe_allow_html=True)
-    
     with c2:
         st.markdown("""
         <div class="feature-card">
             <div class="icon-box"><i class="ri-scales-3-line"></i></div>
             <h4>Legislação (Res. Dez/2025)</h4>
-            <p>Atenção: A nova Resolução confirma que o PEI é <b>obrigatório</b> para qualquer estudante com barreira de aprendizagem, <b>independente de laudo médico</b>.</p>
+            <p>O PEI é <b>obrigatório</b> para estudantes com barreiras de aprendizagem, <b>independente de laudo médico fechado</b>. A escola deve garantir o suporte.</p>
         </div>
         """, unsafe_allow_html=True)
 
     st.write("")
-    # LINHA 2
     c3, c4 = st.columns(2)
     with c3:
         st.markdown("""
         <div class="feature-card">
             <div class="icon-box"><i class="ri-brain-line"></i></div>
             <h4>Neurociência</h4>
-            <p>Focamos no <b>"Como Aprender"</b>. Se a memória de trabalho é curta, fragmentamos a tarefa. Se o controle inibitório é baixo, reduzimos distratores.</p>
+            <p>Foco nas <b>Funções Executivas</b>. Entendemos "como" o cérebro processa a informação para criar estratégias assertivas.</p>
         </div>
         """, unsafe_allow_html=True)
-    
     with c4:
         st.markdown("""
         <div class="feature-card">
             <div class="icon-box"><i class="ri-compass-3-line"></i></div>
             <h4>Base Nacional (BNCC)</h4>
-            <p>Não criamos um currículo paralelo. <b>Flexibilizamos</b> o oficial. O estudante acessa as mesmas Habilidades Essenciais da sua série por caminhos diferentes.</p>
+            <p>Não criamos currículo paralelo. <b>Flexibilizamos</b> o oficial. O estudante acessa as mesmas Habilidades Essenciais da série, por caminhos diferentes.</p>
         </div>
         """, unsafe_allow_html=True)
 
 # 2. ESTUDANTE
 with tab2:
-    st.info("Dossiê do Estudante.")
+    st.info("Preencha o dossiê do estudante.")
     c1, c2, c3 = st.columns([2, 1, 1])
     st.session_state.dados['nome'] = c1.text_input("Nome do Estudante", st.session_state.dados['nome'])
     val_nasc = st.session_state.dados.get('nasc')
@@ -366,7 +336,7 @@ with tab2:
     st.markdown("---")
     st.markdown("##### <i class='ri-history-line'></i> Contexto Escolar", unsafe_allow_html=True)
     ch, cf = st.columns(2)
-    st.session_state.dados['historico'] = ch.text_area("Histórico Escolar", st.session_state.dados['historico'], placeholder="Trajetória...")
+    st.session_state.dados['historico'] = ch.text_area("Histórico Escolar", st.session_state.dados['historico'], placeholder="Trajetória, retenções...")
     st.session_state.dados['familia'] = cf.text_area("Escuta da Família", st.session_state.dados['familia'], placeholder="Expectativas...")
 
     st.markdown("---")
@@ -381,38 +351,38 @@ with tab2:
         uploaded_file = st.file_uploader("Upload do arquivo", type="pdf", key="uploader_tab2")
         if uploaded_file is not None:
             texto = ler_pdf(uploaded_file)
-            if texto: st.session_state.pdf_text = texto; st.success("✅ Laudo integrado!")
+            if texto: st.session_state.pdf_text = texto; st.success("✅ Laudo lido com sucesso!")
 
-# 3. MAPEAMENTO (ÍCONES NOS EXPANDERS)
+# 3. MAPEAMENTO
 with tab3:
     st.markdown("### <i class='ri-rocket-line'></i> Potencialidades", unsafe_allow_html=True)
     c_pot1, c_pot2 = st.columns(2)
-    st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco (Interesse intenso)")
+    st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco / Áreas de Interesse")
     st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", ["Memória Visual", "Tecnologia", "Artes", "Oralidade", "Lógica"], placeholder="Selecione...")
     
     st.markdown("### <i class='ri-barricade-line'></i> Barreiras & Suporte", unsafe_allow_html=True)
     
     with st.expander("Sensorial e Físico", expanded=True):
-        st.markdown('<h4 style="color:#004E92; margin:0;"><i class="ri-eye-line"></i> Perfil Sensorial</h4>', unsafe_allow_html=True)
-        st.session_state.dados['b_sensorial'] = st.multiselect("Barreiras:", ["Hipersensibilidade", "Busca Sensorial", "Seletividade", "Motora"], key="b_sens", placeholder="Selecione...")
+        st.markdown("#### <i class='ri-eye-line'></i> Perfil Sensorial", unsafe_allow_html=True)
+        st.session_state.dados['b_sensorial'] = st.multiselect("Barreiras Identificadas:", ["Hipersensibilidade", "Busca Sensorial", "Seletividade", "Motora"], key="b_sens", placeholder="Selecione...")
         st.write("Nível de Suporte:")
         st.session_state.dados['sup_sensorial'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_sens")
     
     with st.expander("Cognitivo"):
-        st.markdown('<h4 style="color:#004E92; margin:0;"><i class="ri-brain-line"></i> Perfil Cognitivo</h4>', unsafe_allow_html=True)
-        st.session_state.dados['b_cognitiva'] = st.multiselect("Barreiras:", ["Atenção Dispersa", "Memória Curta", "Rigidez Mental", "Processamento Lento"], key="b_cog", placeholder="Selecione...")
+        st.markdown("#### <i class='ri-brain-line'></i> Perfil Cognitivo", unsafe_allow_html=True)
+        st.session_state.dados['b_cognitiva'] = st.multiselect("Barreiras Identificadas:", ["Atenção Dispersa", "Memória Curta", "Rigidez Mental", "Processamento Lento"], key="b_cog", placeholder="Selecione...")
         st.write("Nível de Suporte:")
         st.session_state.dados['sup_cognitiva'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_cog")
     
     with st.expander("Social e Emocional"):
-        st.markdown('<h4 style="color:#004E92; margin:0;"><i class="ri-group-line"></i> Perfil Social</h4>', unsafe_allow_html=True)
-        st.session_state.dados['b_social'] = st.multiselect("Barreiras:", ["Isolamento", "Baixa Tolerância Frustração", "Interpretação Literal"], key="b_soc", placeholder="Selecione...")
+        st.markdown("#### <i class='ri-group-line'></i> Perfil Social", unsafe_allow_html=True)
+        st.session_state.dados['b_social'] = st.multiselect("Barreiras Identificadas:", ["Isolamento", "Baixa Tolerância à Frustração", "Interpretação Literal"], key="b_soc", placeholder="Selecione...")
         st.write("Nível de Suporte:")
         st.session_state.dados['sup_social'] = st.select_slider("", ["🟢 Autônomo", "🟡 Monitorado", "🟠 Substancial", "🔴 Muito Substancial"], value="🟡 Monitorado", key="s_soc")
 
 # 4. PLANO DE AÇÃO
 with tab4:
-    st.markdown("### <i class='ri-checkbox-circle-line'></i> Estratégias", unsafe_allow_html=True)
+    st.markdown("### <i class='ri-checkbox-circle-line'></i> Definição de Estratégias", unsafe_allow_html=True)
     col_a, col_b = st.columns(2)
     with col_a:
         st.markdown("""
@@ -423,7 +393,7 @@ with tab4:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.session_state.dados['estrategias_acesso'] = st.multiselect("Recursos:", ["Tempo estendido (+25%)", "Leitura e Escrita", "Material Ampliado", "Tablet", "Sala Silenciosa", "Pausas"], placeholder="Selecione...")
+        st.session_state.dados['estrategias_acesso'] = st.multiselect("Recursos:", ["Tempo estendido (+25%)", "Apoio à Leitura e Escrita", "Material Ampliado", "Tablet", "Sala Silenciosa", "Pausas"], placeholder="Selecione...")
 
     with col_b:
         st.markdown("""
@@ -434,7 +404,7 @@ with tab4:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.session_state.dados['estrategias_ensino'] = st.multiselect("Estratégias:", ["Fragmentação", "Pistas Visuais", "Mapa Mental", "Redução de Volume", "Multisensorial"], placeholder="Selecione...")
+        st.session_state.dados['estrategias_ensino'] = st.multiselect("Estratégias:", ["Fragmentação de Tarefas", "Pistas Visuais", "Mapa Mental", "Redução de Volume", "Multisensorial"], placeholder="Selecione...")
 
     st.markdown("---")
     st.markdown("""
@@ -458,7 +428,7 @@ with tab5:
         st.caption(f"Contexto: {status}")
         
         if st.button("✨ Gerar Parecer do Especialista", type="primary"):
-            if not st.session_state.dados['nome']: st.warning("Preencha o nome.")
+            if not st.session_state.dados['nome']: st.warning("Preencha o nome do estudante.")
             else:
                 with st.spinner("Analisando BNCC e Neurociência..."):
                     res, err = consultar_ia(api_key, st.session_state.dados, st.session_state.pdf_text)
