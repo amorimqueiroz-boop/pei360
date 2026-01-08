@@ -3,285 +3,527 @@ from datetime import date
 from io import BytesIO
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Pt
+from openai import OpenAI
+from pypdf import PdfReader
+from fpdf import FPDF
+import base64
+import os
+import re
 
-# --- 1. CONFIGURAÇÃO VISUAL ---
+# --- 1. CONFIGURAÇÃO INICIAL E ÍCONE ---
+def get_favicon():
+    # Prioridade para o ícone personalizado criado
+    if os.path.exists("iconeaba.png"): return "iconeaba.png"
+    if os.path.exists("iconeaba.jpg"): return "iconeaba.jpg"
+    return "📘"
+
 st.set_page_config(
-    page_title="PEI 360º | Arco",
-    page_icon="🧩",
+    page_title="PEI 360º",
+    page_icon=get_favicon(),
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# CSS REFINADO
+# --- 2. UTILITÁRIOS ---
+def finding_logo():
+    possiveis = ["360.png", "360.jpg", "logo.png", "logo.jpg", "iconeaba.png"]
+    for nome in possiveis:
+        if os.path.exists(nome): return nome
+    return None
+
+def get_base64_image(image_path):
+    if not image_path: return ""
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+def ler_pdf(arquivo):
+    if arquivo is None: return ""
+    try:
+        reader = PdfReader(arquivo)
+        texto = ""
+        for i, page in enumerate(reader.pages):
+            if i >= 6: break 
+            texto += page.extract_text() + "\n"
+        return texto
+    except Exception as e: return f"Erro ao ler PDF: {e}"
+
+def limpar_texto_pdf(texto):
+    if not texto: return ""
+    texto = texto.replace('**', '').replace('__', '')
+    texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
+    texto = texto.replace('* ', '• ')
+    texto = re.sub(r'[^\x00-\xff]', '', texto) 
+    return texto
+
+# --- 3. CSS (DESIGN CLEAN & UNIFICADO) ---
 st.markdown("""
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #2D3748; }
+    html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2D3748; }
     
-    :root {
-        --arco-blue: #004e92;
-        --arco-orange: #ff7f00;
-        --input-border: #CBD5E0;
-        --input-bg: #FFFFFF;
+    :root { 
+        --brand-blue: #004E92; 
+        --brand-coral: #FF6B6B; 
+        --bg-gray: #F7FAFC;
+        --card-radius: 16px;
     }
 
-    /* Inputs Visíveis */
-    .stTextInput input, .stTextArea textarea, .stDateInput input, .stSelectbox div[data-baseweb="select"] {
-        border: 1px solid var(--input-border) !important;
-        background-color: var(--input-bg) !important;
-        border-radius: 6px !important;
-        padding: 10px !important;
-        color: #2D3748 !important;
-    }
-    
-    /* Cards do Topo */
-    .kpi-card {
-        background: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        border-left: 5px solid var(--arco-orange);
-        text-align: center;
-    }
-    .kpi-title { font-size: 14px; color: #718096; font-weight: 600; text-transform: uppercase; }
-    .kpi-value { font-size: 28px; color: var(--arco-blue); font-weight: 800; }
+    div[data-baseweb="tab-highlight"] { background-color: transparent !important; }
 
-    /* Cards da Home */
-    .home-card {
-        background: #F7FAFC;
+    /* CARD ÚNICO PARA TUDO (Inclusive Cabeçalho) */
+    .unified-card {
+        background-color: white;
         padding: 25px;
-        border-radius: 12px;
+        border-radius: var(--card-radius);
+        border: 1px solid #EDF2F7;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.03);
+        margin-bottom: 20px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .interactive-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--brand-blue);
+        box-shadow: 0 8px 15px rgba(0,78,146,0.08);
+    }
+
+    /* Cabeçalho Limpo (Sem borda azul lateral) */
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        /* Borda removida conforme pedido */
+    }
+
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; padding-bottom: 10px; }
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        border-radius: 25px;
+        padding: 0 25px;
+        background-color: white;
         border: 1px solid #E2E8F0;
-        height: 100%;
+        font-weight: 700;
+        color: #718096;
     }
-    
-    /* Botões */
-    .stButton>button {
-        background-color: var(--arco-blue);
-        color: white;
-        font-weight: 600;
-        border-radius: 6px;
-        border: none;
-        height: 3em;
-        width: 100%;
+    .stTabs [aria-selected="true"] {
+        background-color: var(--brand-coral) !important;
+        color: white !important;
+        border-color: var(--brand-coral) !important;
+        box-shadow: 0 4px 10px rgba(255, 107, 107, 0.2);
     }
-    .stButton>button:hover { background-color: #003a6e; }
 
-    /* Status Text */
-    .status-ok { color: #28a745; font-weight: bold; font-size: 0.9em; margin-top:-10px; margin-bottom:10px;}
-    .status-info { color: #004e92; font-weight: bold; font-size: 0.9em; margin-top:-10px; margin-bottom:10px;}
+    .icon-box {
+        width: 45px; height: 45px;
+        background: #EBF8FF;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        margin-bottom: 15px;
+        color: var(--brand-blue);
+        font-size: 22px;
+    }
+
+    .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+        border-radius: 12px !important;
+        border-color: #E2E8F0 !important;
+    }
+    div[data-testid="column"] .stButton button {
+        border-radius: 12px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        height: 50px !important;
+        letter-spacing: 0.5px;
+    }
     </style>
-    """, unsafe_allow_html=True)
-
-# --- 2. LÓGICA WORD ---
-def gerar_docx_final(dados):
-    doc = Document()
-    
-    titulo = doc.add_heading('PEI 360º - PLANO DE EDUCAÇÃO INCLUSIVA', 0)
-    titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph(f'Escola: {dados["escola"]} | Ano: {date.today().year}').alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph('_' * 70)
-
-    doc.add_heading('1. IDENTIFICAÇÃO', level=1)
-    tbl = doc.add_table(rows=1, cols=2)
-    tbl.autofit = False 
-    celulas = tbl.rows[0].cells
-    celulas[0].text = f"Nome: {dados['nome']}\nNascimento: {str(dados['nasc']) if dados['nasc'] else '--'}"
-    celulas[1].text = f"Série: {dados['serie']}\nTurma: {dados['turma']}"
-    
-    doc.add_paragraph(f"\nDiagnóstico/Hipótese: {dados['cid']}")
-    doc.add_paragraph(f"Equipe Externa: {', '.join(dados['equipe_externa']) if dados['equipe_externa'] else 'Não possui.'}")
-
-    if dados['historico']:
-        doc.add_heading('Histórico Escolar:', level=2)
-        doc.add_paragraph(dados['historico'])
-    if dados['familia']:
-        doc.add_heading('Relato da Família:', level=2)
-        doc.add_paragraph(dados['familia'])
-
-    doc.add_heading('2. MAPEAMENTO PEDAGÓGICO', level=1)
-    doc.add_paragraph(f"Nível de Suporte: {dados['nivel_suporte']}")
-    doc.add_paragraph(f"Engajamento: {dados['nivel_engajamento']} | Autonomia: {dados['nivel_autonomia']}")
-
-    doc.add_heading('Potencialidades e Hiperfoco:', level=2)
-    if dados['hiperfoco']: doc.add_paragraph(f"Hiperfoco: {dados['hiperfoco']}", style='List Bullet')
-    for p in dados['potencias']: doc.add_paragraph(p, style='List Bullet')
-
-    doc.add_heading('Barreiras Identificadas:', level=2)
-    if dados['b_sensorial']: 
-        p = doc.add_paragraph()
-        p.add_run("Sensoriais/Físicas:").bold = True
-        for b in dados['b_sensorial']: doc.add_paragraph(b, style='List Bullet')
-    if dados['b_cognitiva']: 
-        p = doc.add_paragraph()
-        p.add_run("Cognitivas/Aprendizagem:").bold = True
-        for b in dados['b_cognitiva']: doc.add_paragraph(b, style='List Bullet')
-    if dados['b_social']: 
-        p = doc.add_paragraph()
-        p.add_run("Sociais/Comunicação:").bold = True
-        for b in dados['b_social']: doc.add_paragraph(b, style='List Bullet')
-
-    doc.add_heading('3. PLANO DE AÇÃO (ESTRATÉGIAS)', level=1)
-    
-    doc.add_heading('Adaptações de Acesso:', level=2)
-    if dados['estrategias_acesso']:
-        for e in dados['estrategias_acesso']: doc.add_paragraph(e, style='List Bullet')
-    else: doc.add_paragraph("Nenhuma adaptação necessária.")
-
-    doc.add_heading('Adaptações Curriculares:', level=2)
-    if dados['estrategias_curriculo']:
-        for e in dados['estrategias_curriculo']: doc.add_paragraph(e, style='List Bullet')
-    else: doc.add_paragraph("Currículo padrão.")
-
-    doc.add_paragraph('\n\n___________________________\nCoordenação Pedagógica')
-    
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer
-
-# --- 3. ESTADO ---
-if 'dados' not in st.session_state:
-    st.session_state.dados = {
-        'nome': '', 'nasc': None, 'serie': '', 'turma': '', 'escola': '', 
-        'cid': '', 'equipe_externa': [], 'historico': '', 'familia': '', 'hiperfoco': '',
-        'nivel_suporte': 'Leve', 'nivel_engajamento': 'Médio', 'nivel_autonomia': 'Parcial',
-        'potencias': [], 'b_sensorial': [], 'b_cognitiva': [], 'b_social': [],
-        'estrategias_acesso': [], 'estrategias_curriculo': []
-    }
-
-# --- 4. INTERFACE ---
-st.markdown("""
-<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
-    <div>
-        <h1 style='margin:0; font-size: 2.2em;'>PEI 360º</h1>
-        <span style='color:grey; font-size:1.1em;'>Plano de Educação Inclusiva | Arco Educação</span>
-    </div>
-    <div style="text-align:right;">
-        <span style='font-size:0.9em; background:#e3f2fd; color:#004e92; padding:5px 10px; border-radius:15px;'>
-        Decreto 12.773/25
-        </span>
-    </div>
-</div>
 """, unsafe_allow_html=True)
 
-# TOP CARDS
-count_barreiras = len(st.session_state.dados['b_sensorial']) + len(st.session_state.dados['b_cognitiva']) + len(st.session_state.dados['b_social'])
-count_estrat = len(st.session_state.dados['estrategias_acesso']) + len(st.session_state.dados['estrategias_curriculo'])
-status_doc = "Em Elaboração" if not st.session_state.dados['nome'] else "Pronto"
-
-c1, c2, c3 = st.columns(3)
-c1.markdown(f"""<div class="kpi-card"><div class="kpi-title">Barreiras</div><div class="kpi-value">{count_barreiras}</div></div>""", unsafe_allow_html=True)
-c2.markdown(f"""<div class="kpi-card"><div class="kpi-title">Estratégias</div><div class="kpi-value">{count_estrat}</div></div>""", unsafe_allow_html=True)
-c3.markdown(f"""<div class="kpi-card"><div class="kpi-title">Status</div><div class="kpi-value" style="font-size:22px; line-height:34px;">{status_doc}</div></div>""", unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Visão Geral", "👤 Identificação", "🔍 Mapeamento", "🛠️ Estratégias", "🖨️ Exportar"])
-
-with tab1:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("""
-        <div class="home-card">
-            <h3>📘 O que é o PEI?</h3>
-            <p>O <b>Plano de Ensino Individualizado</b> é o "GPS" da inclusão escolar. Ele traça a rota entre onde o aluno está e onde ele pode chegar.</p>
-            <p>Não é um documento burocrático, mas uma ferramenta viva para <b>garantir aprendizado</b>.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown("""
-        <div class="home-card">
-            <h3>⚖️ Legislação & Amparo</h3>
-            <p>Este sistema garante que sua escola cumpra o <b>Decreto 12.773 (Dez/2025)</b>.</p>
-            <div style="background:white; padding:15px; border-left:4px solid #004e92; margin-top:10px; font-style:italic;">
-            "Art. 12. As instituições devem elaborar plano individualizado... independentemente de laudo médico."
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-with tab2:
-    st.markdown("### 1. Dados do Estudante")
-    c1, c2 = st.columns(2)
-    st.session_state.dados['nome'] = c1.text_input("Nome Completo", st.session_state.dados['nome'], placeholder="Digite o nome...")
-    st.session_state.dados['nasc'] = c2.date_input("Data de Nascimento")
+# --- 4. INTELIGÊNCIA ARTIFICIAL (GPT-4o) ---
+def consultar_gpt(api_key, dados, contexto_pdf=""):
+    if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
-    c3, c4 = st.columns(2)
-    st.session_state.dados['escola'] = c3.text_input("Escola", st.session_state.dados['escola'])
-    st.session_state.dados['serie'] = c4.selectbox("Série", ["Ed. Infantil", "Fund I", "Fund II", "Médio"])
-    st.session_state.dados['turma'] = c3.text_input("Turma")
-    st.session_state.dados['cid'] = c4.text_input("CID (Opcional)")
+    try:
+        client = OpenAI(api_key=api_key)
+        contexto_seguro = contexto_pdf[:5000] if contexto_pdf else "Sem laudo anexado."
+        
+        is_ahsd = "altas habilidades" in dados['diagnostico'].lower() or "superdotação" in dados['diagnostico'].lower()
+        foco = "ENRIQUECIMENTO E APROFUNDAMENTO" if is_ahsd else "FLEXIBILIZAÇÃO E SUPORTE"
 
-    st.markdown("---")
-    c_h, c_f = st.columns(2)
-    with c_h:
-        st.markdown("**Histórico Escolar**")
-        st.session_state.dados['historico'] = st.text_area("Histórico", height=100, label_visibility="collapsed", placeholder="Histórico prévio...")
-    with c_f:
-        st.markdown("**Relato da Família**")
-        st.session_state.dados['familia'] = st.text_area("Família", height=100, label_visibility="collapsed", placeholder="Relato familiar...")
+        prompt_sistema = """
+        Você é um Neuropsicopedagogo Sênior.
+        Tarefa: Redigir o PEI (Plano de Ensino Individualizado).
+        Diretriz: Se houver PDF anexo, extraia o diagnóstico dele caso não informado manualmente. Considere a medicação no planejamento.
+        """
+
+        prompt_usuario = f"""
+        ESTUDANTE: {dados['nome']} | Série: {dados['serie']}
+        DIAGNÓSTICO: {dados['diagnostico']} ({foco})
+        MEDICAÇÃO: {dados['medicacao']}
+        HIPERFOCO: {dados['hiperfoco']}
+        POTENCIALIDADES: {', '.join(dados['potencias'])}
+        
+        CONTEXTO: {dados['historico']} | {dados['familia']}
+        REDE DE APOIO: {', '.join(dados['rede_apoio'])} | {dados['orientacoes_especialistas']}
+        
+        BARREIRAS:
+        - Sensorial: {', '.join(dados['b_sensorial'])}
+        - Cognitivo: {', '.join(dados['b_cognitiva'])}
+        - Social: {', '.join(dados['b_social'])}
+        
+        ESTRATÉGIAS:
+        - Acesso: {', '.join(dados['estrategias_acesso'])}
+        - Ensino: {', '.join(dados['estrategias_ensino'])}
+        - Avaliação: {', '.join(dados['estrategias_avaliacao'])}
+        
+        LAUDO PDF: {contexto_seguro}
+        
+        GERE O RELATÓRIO:
+        1. PERFIL: Sintetize o diagnóstico, histórico e *potencialidades*.
+        2. BNCC: Adapte 1 Habilidade Essencial da {dados['serie']}.
+        3. ESTRATÉGIAS: Como aplicar o suporte (considerando medicação se houver).
+        4. CONCLUSÃO: Parecer final.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}],
+            temperature=0.7
+        )
+        return response.choices[0].message.content, None
+    except Exception as e: return None, f"Erro OpenAI: {str(e)}."
+
+# --- 5. PDF REFINADO ---
+class PDF_V3(FPDF):
+    def header(self):
+        self.set_draw_color(0, 78, 146)
+        self.set_line_width(0.4)
+        self.rect(5, 5, 200, 287)
+        
+        logo = finding_logo()
+        if logo: 
+            self.image(logo, 12, 12, 22)
+            x_offset = 40
+        else: x_offset = 12
+        
+        self.set_xy(x_offset, 15)
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 78, 146)
+        # TÍTULO LIMPO (SEM "PEI -")
+        self.cell(0, 8, 'PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'L')
+        
+        self.set_xy(x_offset, 22)
+        self.set_font('Arial', 'I', 9)
+        self.set_text_color(100)
+        self.cell(0, 5, 'Documento Oficial de Planejamento Pedagógico', 0, 1, 'L')
+        self.ln(15)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(128)
+        self.cell(0, 10, f'Gerado via PEI 360º | Página {self.page_no()}', 0, 0, 'C')
+
+    def section_title(self, label):
+        self.ln(5)
+        self.set_fill_color(240, 248, 255)
+        self.set_text_color(0, 78, 146)
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 8, f"  {label}", 0, 1, 'L', fill=True)
+        self.ln(3)
+
+def gerar_pdf(dados, tem_anexo):
+    pdf = PDF_V3()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=20)
     
-    st.markdown("---")
-    eq_opcoes = ["Psicólogo", "Fonoaudiólogo", "T.O.", "Neuropediatra", "Psicopedagogo"]
-    st.session_state.dados['equipe_externa'] = st.multiselect("Rede de Apoio Externa", eq_opcoes)
-
-with tab3:
-    c_pot, c_bar = st.columns(2)
-    with c_pot:
-        st.markdown("### 🌟 Potências")
-        st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco", placeholder="Ex: Dinossauros...")
-        pot_opcoes = ["Memória Visual", "Tecnologia", "Desenho", "Oralidade", "Lógica", "Música"]
-        st.session_state.dados['potencias'] = st.multiselect("Habilidades", pot_opcoes)
-        
-        st.markdown("<br>**Engajamento**", unsafe_allow_html=True)
-        eng = st.select_slider("", ["Baixo", "Médio", "Alto"], value="Médio", key="eng")
-        st.markdown(f"<div class='status-info'>{eng}</div>", unsafe_allow_html=True)
-        st.session_state.dados['nivel_engajamento'] = eng
-        
-        st.markdown("**Autonomia**")
-        aut = st.select_slider("", ["Dependente", "Supervisão Parcial", "Autônomo"], value="Supervisão Parcial", key="aut")
-        st.markdown(f"<div class='status-ok'>{aut}</div>", unsafe_allow_html=True)
-        st.session_state.dados['nivel_autonomia'] = aut
-
-    with c_bar:
-        st.markdown("### 🚧 Barreiras")
-        with st.expander("Sensorial e Físico", expanded=True):
-            op_sen = ["Hipersensibilidade Auditiva", "Agitação Motora", "Baixa Visão", "Coordenação Motora"]
-            st.session_state.dados['b_sensorial'] = st.multiselect("Selecione:", op_sen)
-        with st.expander("Cognitivo"):
-            op_cog = ["Atenção Curta", "Não copia do quadro", "Dificuldade Leitura", "Rigidez Cognitiva"]
-            st.session_state.dados['b_cognitiva'] = st.multiselect("Selecione:", op_cog)
-        with st.expander("Social"):
-            op_soc = ["Isolamento", "Opositor", "Pouca comunicação verbal", "Ecolalia"]
-            st.session_state.dados['b_social'] = st.multiselect("Selecione:", op_soc)
-        
-        st.markdown("<br>**Suporte Necessário**", unsafe_allow_html=True)
-        sup = st.select_slider("", ["Leve", "Moderado", "Elevado (AT)"], value="Leve", key="sup")
-        st.markdown(f"<div class='status-info'>{sup}</div>", unsafe_allow_html=True)
-        st.session_state.dados['nivel_suporte'] = sup
-
-with tab4:
-    st.markdown("### 🚀 Plano de Ação")
-    sug = []
-    if "Hipersensibilidade Auditiva" in st.session_state.dados['b_sensorial']: sug.append("Uso de abafadores")
-    if "Não copia do quadro" in st.session_state.dados['b_cognitiva']: sug.append("Fornecer pauta impressa/foto")
+    # 1. Identificação
+    pdf.section_title("1. IDENTIFICAÇÃO E CONTEXTO")
+    pdf.set_font("Arial", size=10); pdf.set_text_color(0)
     
-    c1, c2 = st.columns(2)
-    with c1:
-        st.info("Adaptações de Acesso")
-        op_acc = ["Tempo estendido", "Ledor e Escriba", "Material ampliado", "Uso de Tablet", "Sentar à frente"]
-        st.session_state.dados['estrategias_acesso'] = st.multiselect("Estratégias:", options=sug+op_acc, default=sug)
-    with c2:
-        st.info("Adaptações Curriculares")
-        op_cur = ["Redução de questões", "Priorização de conteúdo", "Avaliação Oral", "Prova Adaptada", "Atividade Prática"]
-        st.session_state.dados['estrategias_curriculo'] = st.multiselect("Estratégias:", op_cur)
+    nasc = dados['nasc'].strftime('%d/%m/%Y') if dados['nasc'] else "-"
+    diag_display = dados['diagnostico'] if dados['diagnostico'] else ("Em análise (Vide laudo anexo)" if tem_anexo else "Não informado")
+    med_display = dados['medicacao'] if dados['medicacao'] else "Não faz uso / Não informado"
 
-with tab5:
-    st.markdown("<div style='text-align:center; padding: 20px;'>", unsafe_allow_html=True)
-    if not st.session_state.dados['nome']:
-        st.warning("⚠️ Preencha o nome do aluno na aba 'Identificação'.")
+    txt_ident = (
+        f"Nome: {dados['nome']}\n"
+        f"Nascimento: {nasc}\n"
+        f"Série: {dados['serie']} | Turma: {dados['turma']}\n"
+        f"Diagnóstico: {diag_display}\n"
+        f"Medicação: {med_display}"
+    )
+    pdf.multi_cell(0, 6, limpar_texto_pdf(txt_ident))
+    
+    # 2. Rede de Apoio
+    if dados['rede_apoio'] or dados['orientacoes_especialistas']:
+        pdf.ln(3)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(0, 6, "Suporte Multidisciplinar:", 0, 1)
+        pdf.set_font("Arial", size=10)
+        
+        prof = ', '.join(dados['rede_apoio']) if dados['rede_apoio'] else "-"
+        ori = dados['orientacoes_especialistas'] if dados['orientacoes_especialistas'] else "-"
+        pdf.multi_cell(0, 6, limpar_texto_pdf(f"Profissionais: {prof}.\nOrientações: {ori}"))
+
+    # 3. Relatório IA (Sem redundância de título)
+    if dados['ia_sugestao']:
+        pdf.ln(5)
+        txt_ia = limpar_texto_pdf(dados['ia_sugestao'])
+        pdf.multi_cell(0, 6, txt_ia)
+        
+    # 4. Assinaturas
+    pdf.ln(20)
+    y = pdf.get_y()
+    if y > 250: pdf.add_page(); y = 40
+    pdf.line(20, y, 90, y); pdf.line(120, y, 190, y)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.text(35, y+5, "Coordenação / Direção"); pdf.text(135, y+5, "Família / Responsável")
+    
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
+def gerar_docx(dados):
+    doc = Document()
+    style = doc.styles['Normal']; style.font.name = 'Arial'; style.font.size = Pt(11)
+    
+    doc.add_heading('PLANO DE ENSINO INDIVIDUALIZADO', 0)
+    doc.add_paragraph(f"Estudante: {dados['nome']}")
+    doc.add_paragraph(f"Série: {dados['serie']} | Turma: {dados['turma']}")
+    doc.add_paragraph(f"Diagnóstico: {dados['diagnostico']}")
+    doc.add_paragraph(f"Medicação: {dados['medicacao']}")
+    
+    if dados['ia_sugestao']:
+        doc.add_heading('Parecer Pedagógico', level=1)
+        doc.add_paragraph(dados['ia_sugestao'])
+        
+    buffer = BytesIO(); doc.save(buffer); buffer.seek(0)
+    return buffer
+
+# --- 6. ESTADO ---
+if 'dados' not in st.session_state:
+    st.session_state.dados = {
+        'nome': '', 'nasc': None, 'serie': None, 'turma': '', 
+        'diagnostico': '', 'medicacao': '', 
+        'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [], # Potencias volta aqui
+        'rede_apoio': [], 'orientacoes_especialistas': '',
+        'b_sensorial': [], 'sup_sensorial': '🟡 Monitorado',
+        'b_cognitiva': [], 'sup_cognitiva': '🟡 Monitorado',
+        'b_social': [], 'sup_social': '🟡 Monitorado',
+        'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [],
+        'ia_sugestao': ''
+    }
+if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
+
+# --- 7. SIDEBAR ---
+with st.sidebar:
+    logo = finding_logo()
+    if logo: st.image(logo, width=120)
+    
+    if 'OPENAI_API_KEY' in st.secrets:
+        api_key = st.secrets['OPENAI_API_KEY']
+        st.success("✅ OpenAI Ativa")
     else:
-        st.success("✅ Documento compilado!")
-        doc_file = gerar_docx_final(st.session_state.dados)
-        st.download_button("📥 BAIXAR PEI EM WORD (.DOCX)", doc_file, f"PEI_{st.session_state.dados['nome'].strip()}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    st.markdown("</div>", unsafe_allow_html=True)
+        api_key = st.text_input("Chave OpenAI (sk-...):", type="password")
+        
+    st.markdown("---")
+    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.4<br>Release Candidate</div>", unsafe_allow_html=True)
+
+# --- 8. LAYOUT ---
+
+# CABEÇALHO UNIFICADO (SEM BORDA AZUL EXTRA, SEM TÍTULO)
+logo_path = finding_logo()
+b64_logo = get_base64_image(logo_path)
+mime = "image/png" if logo_path and logo_path.endswith("png") else "image/jpeg"
+img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 70px;">' if logo_path else ""
+
+st.markdown(f"""
+    <div class="unified-card header-content">
+        {img_html}
+        <div>
+            <p style="margin: 0; color: #004E92; font-size: 1.2rem; font-weight: 700;">Ecossistema de Inteligência Pedagógica e Inclusiva</p>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+# ABAS
+abas = ["Início", "Estudante", "Rede de Apoio", "Mapeamento", "Plano de Ação", "Consultoria IA", "Documento"]
+tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
+
+# TAB 0: INÍCIO
+with tab0:
+    st.markdown("### <i class='ri-dashboard-line'></i> Visão Geral", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("""
+        <div class="unified-card interactive-card">
+            <div class="icon-box"><i class="ri-book-read-line"></i></div>
+            <h4>O que é o PEI?</h4>
+            <p>Instrumento oficial de acessibilidade curricular. Garante o acesso ao conhecimento, conforme a LBI.</p>
+        </div>""", unsafe_allow_html=True)
+    with c2:
+        st.markdown("""
+        <div class="unified-card interactive-card">
+            <div class="icon-box"><i class="ri-scales-3-line"></i></div>
+            <h4>Legalidade</h4>
+            <p>Conforme Decreto 12.686/2025. O PEI independe de laudo médico fechado, focando nas barreiras.</p>
+        </div>""", unsafe_allow_html=True)
+
+    c3, c4 = st.columns(2)
+    with c3:
+        st.markdown("""
+        <div class="unified-card interactive-card">
+            <div class="icon-box"><i class="ri-brain-line"></i></div>
+            <h4>Neurociência</h4>
+            <p>Mapeamos Funções Executivas e Perfil Sensorial para estratégias assertivas.</p>
+        </div>""", unsafe_allow_html=True)
+    with c4:
+        st.markdown("""
+        <div class="unified-card interactive-card">
+            <div class="icon-box"><i class="ri-compass-3-line"></i></div>
+            <h4>BNCC</h4>
+            <p>Garantia das Aprendizagens Essenciais através da flexibilização curricular.</p>
+        </div>""", unsafe_allow_html=True)
+
+# TAB 1: ESTUDANTE
+with tab1:
+    st.markdown("### <i class='ri-user-smile-line'></i> Dossiê do Estudante", unsafe_allow_html=True)
+    
+    c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
+    st.session_state.dados['nome'] = c1.text_input("Nome Completo", st.session_state.dados['nome'])
+    st.session_state.dados['nasc'] = c2.date_input("Nascimento", st.session_state.dados['nasc'])
+    st.session_state.dados['serie'] = c3.selectbox("Série/Ano", ["Infantil", "1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano", "Fund. II", "Ensino Médio"], placeholder="Selecione...")
+    st.session_state.dados['turma'] = c4.text_input("Turma", st.session_state.dados['turma'])
+
+    st.markdown("---")
+    st.markdown("##### 1. Contexto Escolar e Familiar")
+    ch, cf = st.columns(2)
+    with ch:
+        st.info("Trajetória escolar, retenções e relação com a aprendizagem.")
+        st.session_state.dados['historico'] = st.text_area("Histórico Escolar", st.session_state.dados['historico'], height=100, label_visibility="collapsed")
+    with cf:
+        st.info("Rotina, expectativas e estrutura familiar.")
+        st.session_state.dados['familia'] = st.text_area("Contexto Familiar", st.session_state.dados['familia'], height=100, label_visibility="collapsed")
+
+    st.markdown("##### 2. Saúde e Diagnóstico")
+    col_d, col_m = st.columns(2)
+    with col_d:
+        st.caption("Diagnóstico (Se vazio, será buscado no PDF anexo).")
+        st.session_state.dados['diagnostico'] = st.text_input("Diagnóstico Clínico", st.session_state.dados['diagnostico'], placeholder="Ex: TEA, TDAH...")
+    with col_m:
+        st.caption("Uso de Medicação (Para manejo de efeitos colaterais).")
+        st.session_state.dados['medicacao'] = st.text_input("Medicação em uso", st.session_state.dados['medicacao'], placeholder="Ex: Ritalina, Risperidona...")
+    
+    with st.expander("📎 Anexar Laudo (PDF)"):
+        up = st.file_uploader("Arquivo PDF", type="pdf")
+        if up:
+            st.session_state.pdf_text = ler_pdf(up)
+            st.success("PDF Anexado!")
+
+# TAB 2: REDE DE APOIO
+with tab2:
+    st.markdown("### <i class='ri-team-line'></i> Rede de Apoio", unsafe_allow_html=True)
+    st.info("Profissionais externos que atendem o estudante.")
+    
+    c_rede1, c_rede2 = st.columns(2)
+    st.session_state.dados['rede_apoio'] = c_rede1.multiselect(
+        "Profissionais:", 
+        ["Psicólogo", "Fonoaudiólogo", "Terapeuta Ocupacional", "Neuropediatra", "Psicopedagogo", "Professor Particular"],
+        placeholder="Selecione..."
+    )
+    st.session_state.dados['orientacoes_especialistas'] = st.text_area("Orientações Técnicas (Resumo)", placeholder="Recomendações clínicas...", height=150)
+
+# TAB 3: MAPEAMENTO (COM POTENCIALIDADES)
+with tab3:
+    st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento Integral", unsafe_allow_html=True)
+    
+    c_pot1, c_pot2 = st.columns(2)
+    with c_pot1:
+        st.caption("O que engaja o aluno?")
+        st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco / Interesses", placeholder="Ex: Dinossauros, Artes...")
+    with c_pot2:
+        st.caption("Habilidades de destaque (Neurodiversidade).")
+        st.session_state.dados['potencias'] = st.multiselect("Pontos Fortes / Potencialidades", ["Memória Visual", "Lógica Matemática", "Criatividade", "Oralidade", "Tecnologia", "Artes", "Música"], placeholder="Selecione...")
+
+    st.markdown("#### Barreiras e Suporte")
+    c_bar1, c_bar2, c_bar3 = st.columns(3)
+    with c_bar1:
+        with st.container(border=True):
+            st.markdown("##### Sensorial")
+            st.session_state.dados['b_sensorial'] = st.multiselect("Barreiras:", ["Hipersensibilidade Auditiva", "Hipersensibilidade Visual", "Busca Sensorial", "Baixo Tônus"], key="b1", placeholder="Selecione...")
+            st.session_state.dados['sup_sensorial'] = st.select_slider("Suporte", ["Autônomo", "Monitorado", "Substancial", "Muito Substancial"], value="Monitorado", key="s1")
+    with c_bar2:
+        with st.container(border=True):
+            st.markdown("##### Cognitivo")
+            st.session_state.dados['b_cognitiva'] = st.multiselect("Barreiras:", ["Atenção", "Memória", "Rigidez Mental", "Processamento Lento"], key="b2", placeholder="Selecione...")
+            st.session_state.dados['sup_cognitiva'] = st.select_slider("Suporte", ["Autônomo", "Monitorado", "Substancial", "Muito Substancial"], value="Monitorado", key="s2")
+    with c_bar3:
+        with st.container(border=True):
+            st.markdown("##### Social")
+            st.session_state.dados['b_social'] = st.multiselect("Barreiras:", ["Interação", "Frustração", "Regras", "Isolamento"], key="b3", placeholder="Selecione...")
+            st.session_state.dados['sup_social'] = st.select_slider("Suporte", ["Autônomo", "Monitorado", "Substancial", "Muito Substancial"], value="Monitorado", key="s3")
+
+# TAB 4: PLANO DE AÇÃO (TEXTOS CORRIGIDOS)
+with tab4:
+    st.markdown("### <i class='ri-tools-line'></i> Estratégias Pedagógicas", unsafe_allow_html=True)
+    st.caption("Recursos de Desenho Universal para Aprendizagem (DUA).")
+    
+    c_acesso, c_ensino = st.columns(2)
+    with c_acesso:
+        st.markdown("#### 1. Acesso ao Currículo")
+        st.session_state.dados['estrategias_acesso'] = st.multiselect(
+            "Recursos de Acessibilidade:", 
+            ["Tempo Estendido (+25%)", "Apoio à Leitura e Escrita", "Material Ampliado", "Sala com Redução de Estímulos", "Tecnologia Assistiva", "Pausas Sensoriais"],
+            placeholder="Selecione..."
+        )
+    with c_ensino:
+        st.markdown("#### 2. Metodologia de Ensino")
+        st.session_state.dados['estrategias_ensino'] = st.multiselect(
+            "Estratégias Didáticas:", 
+            ["Fragmentação de Tarefas", "Pistas Visuais", "Enriquecimento Curricular (AH/SD)", "Antecipação de Rotina", "Projetos Práticos"],
+            placeholder="Selecione..."
+        )
+    
+    st.write("")
+    st.markdown("#### 3. Avaliação")
+    st.session_state.dados['estrategias_avaliacao'] = st.multiselect(
+        "Formato Avaliativo:", 
+        ["Prova Adaptada", "Consulta Permitida", "Avaliação Oral", "Trabalho Prático", "Enunciados Curtos"],
+        placeholder="Selecione..."
+    )
+
+# TAB 5: IA
+with tab5:
+    st.markdown("### <i class='ri-robot-2-line'></i> Consultoria Pedagógica", unsafe_allow_html=True)
+    col_btn, col_txt = st.columns([1, 2])
+    with col_btn:
+        st.info("A IA cruza Perfil, Laudo, Medicação e BNCC para criar o plano.")
+        if st.button("GERAR PLANO", type="primary"):
+            if not st.session_state.dados['nome']: st.error("Preencha o Nome.")
+            else:
+                with st.spinner("Processando..."):
+                    res, err = consultar_gpt(api_key, st.session_state.dados, st.session_state.pdf_text)
+                    if err: st.error(err)
+                    else: st.session_state.dados['ia_sugestao'] = res; st.success("Gerado!")
+    with col_txt:
+        if st.session_state.dados['ia_sugestao']:
+            st.text_area("Parecer Técnico:", st.session_state.dados['ia_sugestao'], height=500)
+        else:
+            st.markdown("<div style='padding:50px; text-align:center; color:#CBD5E0; border:2px dashed #E2E8F0; border-radius:12px;'>O plano aparecerá aqui.</div>", unsafe_allow_html=True)
+
+# TAB 6: DOCUMENTO
+with tab6:
+    st.markdown("### <i class='ri-file-pdf-line'></i> Exportação", unsafe_allow_html=True)
+    if st.session_state.dados['ia_sugestao']:
+        c_pdf, c_word = st.columns(2)
+        tem_anexo = len(st.session_state.pdf_text) > 0
+        
+        with c_pdf:
+            pdf_bytes = gerar_pdf(st.session_state.dados, tem_anexo)
+            st.download_button("📥 Baixar PDF", pdf_bytes, f"PEI_{st.session_state.dados['nome']}.pdf", "application/pdf", type="primary")
+        with c_word:
+            docx_bytes = gerar_docx(st.session_state.dados)
+            st.download_button("📥 Baixar Word", docx_bytes, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    else:
+        st.warning("Gere o plano na aba de IA primeiro.")
+
+st.markdown("---")
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v3.4 | Powered by OpenAI</div>", unsafe_allow_html=True)
