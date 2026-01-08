@@ -11,11 +11,9 @@ import base64
 import os
 import re
 
-# --- 1. CONFIGURAÇÃO INICIAL E ÍCONE ---
+# --- 1. CONFIGURAÇÃO INICIAL ---
 def get_favicon():
-    # Prioridade para o ícone personalizado criado
     if os.path.exists("iconeaba.png"): return "iconeaba.png"
-    if os.path.exists("iconeaba.jpg"): return "iconeaba.jpg"
     return "📘"
 
 st.set_page_config(
@@ -56,7 +54,7 @@ def limpar_texto_pdf(texto):
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
     return texto
 
-# --- 3. CSS (DESIGN CLEAN & UNIFICADO) ---
+# --- 3. CSS (DESIGN SYSTEM FINAL) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -73,7 +71,7 @@ st.markdown("""
 
     div[data-baseweb="tab-highlight"] { background-color: transparent !important; }
 
-    /* CARD ÚNICO PARA TUDO (Inclusive Cabeçalho) */
+    /* CARD UNIFICADO (Header e Conteúdo iguais) */
     .unified-card {
         background-color: white;
         padding: 25px;
@@ -90,12 +88,11 @@ st.markdown("""
         box-shadow: 0 8px 15px rgba(0,78,146,0.08);
     }
 
-    /* Cabeçalho Limpo (Sem borda azul lateral) */
+    /* HEADER LIMPO (Sem borda lateral azul) */
     .header-content {
         display: flex;
         align-items: center;
         gap: 25px;
-        /* Borda removida conforme pedido */
     }
 
     .stTabs [data-baseweb="tab-list"] { gap: 10px; padding-bottom: 10px; }
@@ -160,8 +157,10 @@ def consultar_gpt(api_key, dados, contexto_pdf=""):
         ESTUDANTE: {dados['nome']} | Série: {dados['serie']}
         DIAGNÓSTICO: {dados['diagnostico']} ({foco})
         MEDICAÇÃO: {dados['medicacao']}
-        HIPERFOCO: {dados['hiperfoco']}
-        POTENCIALIDADES: {', '.join(dados['potencias'])}
+        
+        MAPA DE POTENCIALIDADES (Use isso para estratégias de engajamento):
+        - Hiperfoco: {dados['hiperfoco']}
+        - Pontos Fortes: {', '.join(dados['potencias'])}
         
         CONTEXTO: {dados['historico']} | {dados['familia']}
         REDE DE APOIO: {', '.join(dados['rede_apoio'])} | {dados['orientacoes_especialistas']}
@@ -171,7 +170,7 @@ def consultar_gpt(api_key, dados, contexto_pdf=""):
         - Cognitivo: {', '.join(dados['b_cognitiva'])}
         - Social: {', '.join(dados['b_social'])}
         
-        ESTRATÉGIAS:
+        ESTRATÉGIAS SELECIONADAS:
         - Acesso: {', '.join(dados['estrategias_acesso'])}
         - Ensino: {', '.join(dados['estrategias_ensino'])}
         - Avaliação: {', '.join(dados['estrategias_avaliacao'])}
@@ -181,7 +180,7 @@ def consultar_gpt(api_key, dados, contexto_pdf=""):
         GERE O RELATÓRIO:
         1. PERFIL: Sintetize o diagnóstico, histórico e *potencialidades*.
         2. BNCC: Adapte 1 Habilidade Essencial da {dados['serie']}.
-        3. ESTRATÉGIAS: Como aplicar o suporte (considerando medicação se houver).
+        3. ESTRATÉGIAS: Como aplicar o suporte e usar os pontos fortes.
         4. CONCLUSÃO: Parecer final.
         """
         
@@ -209,7 +208,6 @@ class PDF_V3(FPDF):
         self.set_xy(x_offset, 15)
         self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 78, 146)
-        # TÍTULO LIMPO (SEM "PEI -")
         self.cell(0, 8, 'PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'L')
         
         self.set_xy(x_offset, 22)
@@ -265,7 +263,7 @@ def gerar_pdf(dados, tem_anexo):
         ori = dados['orientacoes_especialistas'] if dados['orientacoes_especialistas'] else "-"
         pdf.multi_cell(0, 6, limpar_texto_pdf(f"Profissionais: {prof}.\nOrientações: {ori}"))
 
-    # 3. Relatório IA (Sem redundância de título)
+    # 3. Relatório IA
     if dados['ia_sugestao']:
         pdf.ln(5)
         txt_ia = limpar_texto_pdf(dados['ia_sugestao'])
@@ -303,7 +301,7 @@ if 'dados' not in st.session_state:
     st.session_state.dados = {
         'nome': '', 'nasc': None, 'serie': None, 'turma': '', 
         'diagnostico': '', 'medicacao': '', 
-        'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [], # Potencias volta aqui
+        'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
         'rede_apoio': [], 'orientacoes_especialistas': '',
         'b_sensorial': [], 'sup_sensorial': '🟡 Monitorado',
         'b_cognitiva': [], 'sup_cognitiva': '🟡 Monitorado',
@@ -325,11 +323,11 @@ with st.sidebar:
         api_key = st.text_input("Chave OpenAI (sk-...):", type="password")
         
     st.markdown("---")
-    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.4<br>Release Candidate</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.5<br>Stable Release</div>", unsafe_allow_html=True)
 
 # --- 8. LAYOUT ---
 
-# CABEÇALHO UNIFICADO (SEM BORDA AZUL EXTRA, SEM TÍTULO)
+# CABEÇALHO (Card Branco Puro)
 logo_path = finding_logo()
 b64_logo = get_base64_image(logo_path)
 mime = "image/png" if logo_path and logo_path.endswith("png") else "image/jpeg"
@@ -431,17 +429,21 @@ with tab2:
     )
     st.session_state.dados['orientacoes_especialistas'] = st.text_area("Orientações Técnicas (Resumo)", placeholder="Recomendações clínicas...", height=150)
 
-# TAB 3: MAPEAMENTO (COM POTENCIALIDADES)
+# TAB 3: MAPEAMENTO (CORRIGIDO E VISÍVEL)
 with tab3:
     st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento Integral", unsafe_allow_html=True)
     
-    c_pot1, c_pot2 = st.columns(2)
-    with c_pot1:
-        st.caption("O que engaja o aluno?")
-        st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco / Interesses", placeholder="Ex: Dinossauros, Artes...")
-    with c_pot2:
-        st.caption("Habilidades de destaque (Neurodiversidade).")
-        st.session_state.dados['potencias'] = st.multiselect("Pontos Fortes / Potencialidades", ["Memória Visual", "Lógica Matemática", "Criatividade", "Oralidade", "Tecnologia", "Artes", "Música"], placeholder="Selecione...")
+    # CONTAINER UNIFICADO PARA HIPERFOCO E POTENCIALIDADES (GARANTIA DE VISUALIZAÇÃO)
+    with st.container(border=True):
+        st.markdown("#### Potencialidades e Interesses")
+        c_pot1, c_pot2 = st.columns(2)
+        with c_pot1:
+            st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco (Interesses intensos)", placeholder="Ex: Dinossauros, Minecraft...")
+        with c_pot2:
+            st.session_state.dados['potencias'] = st.multiselect("Pontos Fortes / Habilidades", 
+                ["Memória Visual", "Lógica Matemática", "Criatividade", "Oralidade", "Tecnologia", "Artes", "Música"], 
+                placeholder="Selecione..."
+            )
 
     st.markdown("#### Barreiras e Suporte")
     c_bar1, c_bar2, c_bar3 = st.columns(3)
@@ -461,7 +463,7 @@ with tab3:
             st.session_state.dados['b_social'] = st.multiselect("Barreiras:", ["Interação", "Frustração", "Regras", "Isolamento"], key="b3", placeholder="Selecione...")
             st.session_state.dados['sup_social'] = st.select_slider("Suporte", ["Autônomo", "Monitorado", "Substancial", "Muito Substancial"], value="Monitorado", key="s3")
 
-# TAB 4: PLANO DE AÇÃO (TEXTOS CORRIGIDOS)
+# TAB 4: PLANO DE AÇÃO (TERMOS CORRIGIDOS)
 with tab4:
     st.markdown("### <i class='ri-tools-line'></i> Estratégias Pedagógicas", unsafe_allow_html=True)
     st.caption("Recursos de Desenho Universal para Aprendizagem (DUA).")
@@ -526,4 +528,4 @@ with tab6:
         st.warning("Gere o plano na aba de IA primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v3.4 | Powered by OpenAI</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v3.5 | Powered by OpenAI</div>", unsafe_allow_html=True)
