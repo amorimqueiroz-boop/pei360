@@ -16,7 +16,7 @@ def get_favicon():
     return "📘"
 
 st.set_page_config(
-    page_title="PEI 360º | OpenAI Edition",
+    page_title="PEI 360º | Versão 3.3",
     page_icon=get_favicon(),
     layout="wide",
     initial_sidebar_state="expanded"
@@ -39,7 +39,7 @@ def ler_pdf(arquivo):
     try:
         reader = PdfReader(arquivo)
         texto = ""
-        # O GPT-4 suporta janelas de contexto maiores, podemos ler mais páginas
+        # Lê até 6 páginas para garantir contexto suficiente
         for i, page in enumerate(reader.pages):
             if i >= 6: break 
             texto += page.extract_text() + "\n"
@@ -48,13 +48,14 @@ def ler_pdf(arquivo):
 
 def limpar_texto_pdf(texto):
     if not texto: return ""
+    # Limpeza para evitar caracteres estranhos no PDF final
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
     texto = texto.replace('* ', '• ')
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
     return texto
 
-# --- 3. CSS UNIFICADO (DESIGN SYSTEM ARCO) ---
+# --- 3. CSS (DESIGN SYSTEM BLINDADO) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -135,66 +136,62 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. INTELIGÊNCIA ARTIFICIAL (OPENAI - GPT-4o-mini) ---
+# --- 4. INTELIGÊNCIA ARTIFICIAL (OPENAI - GPT-4o) ---
 def consultar_gpt(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
     try:
-        # Cliente OpenAI Padrão
         client = OpenAI(api_key=api_key)
         
-        # Limpeza e preparação de contexto
-        contexto_seguro = contexto_pdf[:4000] if contexto_pdf else "Sem laudo anexado."
+        # Prepara contexto seguro
+        contexto_seguro = contexto_pdf[:5000] if contexto_pdf else "Sem laudo anexado."
         
-        # Definição de Perfil (AH/SD vs Dificuldades)
         is_ahsd = "altas habilidades" in dados['diagnostico'].lower() or "superdotação" in dados['diagnostico'].lower()
-        foco_estrategico = "ENRIQUECIMENTO E APROFUNDAMENTO (Bloom Nível Superior)" if is_ahsd else "FLEXIBILIZAÇÃO E SUPORTE (DUA - Desenho Universal)"
+        foco_estrategico = "ENRIQUECIMENTO E APROFUNDAMENTO" if is_ahsd else "FLEXIBILIZAÇÃO E SUPORTE"
 
-        # Prompt de Sistema (Role) - Neuropsicopedagogo
         prompt_sistema = """
-        Você é um Neuropsicopedagogo Sênior especialista em LBI (Lei Brasileira de Inclusão) e BNCC.
-        Sua tarefa: Redigir o PEI (Plano de Ensino Individualizado) oficial.
+        Você é um Neuropsicopedagogo Sênior especialista em LBI e BNCC.
+        Sua tarefa: Redigir o PEI (Plano de Ensino Individualizado).
         
-        Regras de Ouro:
-        1. CRUZE DADOS: Se o aluno tem "Memória Curta" (Mapeamento), justifique o uso de "Pistas Visuais" (Estratégia).
-        2. BASE LEGAL: Garanta que o texto esteja em conformidade com o Decreto 12.686/2025 (Brasil).
-        3. TOM DE VOZ: Profissional, acolhedor e técnico.
-        4. BNCC: Cite explicitamente códigos da BNCC adequados à série do aluno.
+        IMPORTANTE: 
+        1. Se o diagnóstico não foi informado manualmente, TENTE IDENTIFICAR NO LAUDO PDF e cite-o claramente.
+        2. MEDICAÇÃO: Se o campo 'Medicação' não for vazio, verifique efeitos colaterais comuns (sede, sono, agitação) e proponha estratégias de manejo em sala.
         """
 
-        # Prompt do Usuário (Dados)
         prompt_usuario = f"""
         PERFIL DO ESTUDANTE:
         Nome: {dados['nome']} | Série: {dados['serie']} | Turma: {dados['turma']}
-        Diagnóstico: {dados['diagnostico']} ({foco_estrategico})
-        Hiperfoco/Interesses: {dados['hiperfoco']}
+        Diagnóstico Informado: {dados['diagnostico']} ({foco_estrategico})
+        Medicação: {dados['medicacao']}
+        Hiperfoco: {dados['hiperfoco']}
         
-        CONTEXTO BIOPSICOSSOCIAL:
-        - Histórico Escolar: {dados['historico']}
+        CONTEXTO:
+        - Histórico: {dados['historico']}
         - Família: {dados['familia']}
-        - Rede de Apoio (Incluir recomendações): {', '.join(dados['rede_apoio'])} | {dados['orientacoes_especialistas']}
+        - Rede de Apoio: {', '.join(dados['rede_apoio'])}
+        - Orientações Clínicas: {dados['orientacoes_especialistas']}
         
-        MAPEAMENTO DE BARREIRAS (Neurociência):
+        BARREIRAS MAPEADAS:
         - Sensorial: {', '.join(dados['b_sensorial'])}
-        - Cognitivo (Funções Executivas): {', '.join(dados['b_cognitiva'])}
+        - Cognitivo: {', '.join(dados['b_cognitiva'])}
         - Social: {', '.join(dados['b_social'])}
         
-        ESTRATÉGIAS PEDAGÓGICAS DEFINIDAS:
+        ESTRATÉGIAS DEFINIDAS:
         - Acesso: {', '.join(dados['estrategias_acesso'])}
         - Ensino: {', '.join(dados['estrategias_ensino'])}
         - Avaliação: {', '.join(dados['estrategias_avaliacao'])}
         
-        RESUMO DO LAUDO MÉDICO: {contexto_seguro}
+        LAUDO ANEXO (Texto extraído): {contexto_seguro}
         
-        GERE O RELATÓRIO ESTRUTURADO:
-        1. CARACTERIZAÇÃO DO ESTUDANTE: Sintetize o perfil cruzando histórico, diagnóstico e o impacto das barreiras nas funções executivas.
-        2. PLANEJAMENTO CURRICULAR (BNCC): Selecione 1 Habilidade Essencial da {dados['serie']} e descreva como adaptá-la usando o Hiperfoco do aluno.
-        3. ESTRATÉGIAS DE INTERVENÇÃO: Explique COMO aplicar as estratégias selecionadas (ex: como usar o ledor, como fracionar tarefas) baseando-se na neurociência.
-        4. PARECER FINAL: Conclusão sobre a viabilidade do plano e recomendações à família.
+        GERE O RELATÓRIO NESTA ESTRUTURA:
+        1. CARACTERIZAÇÃO DO ESTUDANTE: Confirme o diagnóstico (do manual ou do PDF) e sintetize o perfil.
+        2. PLANEJAMENTO CURRICULAR (BNCC): Selecione 1 Habilidade Essencial da {dados['serie']} e adapte-a.
+        3. ESTRATÉGIAS DE INTERVENÇÃO: Explique como aplicar as estratégias e manejar a medicação (se houver).
+        4. CONCLUSÃO: Parecer final.
         """
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini", # Modelo rápido, barato e inteligente (ou gpt-4o se preferir)
+            model="gpt-4o-mini", # Use gpt-4o se sua chave tiver acesso
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": prompt_usuario}
@@ -203,7 +200,7 @@ def consultar_gpt(api_key, dados, contexto_pdf=""):
         )
         return response.choices[0].message.content, None
     except Exception as e: 
-        return None, f"Erro OpenAI: {str(e)}. Verifique sua chave API ou saldo."
+        return None, f"Erro OpenAI: {str(e)}."
 
 # --- 5. PDF EXECUTIVO ---
 class PDF_V3(FPDF):
@@ -233,7 +230,7 @@ class PDF_V3(FPDF):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128)
-        self.cell(0, 10, f'Gerado via PEI 360º (GPT-Powered) | Página {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, f'Gerado via PEI 360º | Página {self.page_no()}', 0, 0, 'C')
 
     def section_title(self, label):
         self.ln(5)
@@ -243,7 +240,7 @@ class PDF_V3(FPDF):
         self.cell(0, 8, f"  {label}", 0, 1, 'L', fill=True)
         self.ln(3)
 
-def gerar_pdf(dados):
+def gerar_pdf(dados, tem_anexo):
     pdf = PDF_V3()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
@@ -253,21 +250,38 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", size=10); pdf.set_text_color(0)
     
     nasc = dados['nasc'].strftime('%d/%m/%Y') if dados['nasc'] else "-"
+    
+    # Lógica Inteligente para exibição do Diagnóstico
+    diag_display = dados['diagnostico']
+    if not diag_display and tem_anexo:
+        diag_display = "Em análise (Vide laudo anexo e parecer técnico abaixo)"
+    elif not diag_display:
+        diag_display = "Não informado"
+
+    # Lógica para exibição da Medicação
+    med_display = dados['medicacao'] if dados['medicacao'] else "Não informado / Não faz uso"
+
     txt_ident = (
         f"Nome: {dados['nome']}\n"
         f"Nascimento: {nasc}\n"
         f"Série: {dados['serie']} | Turma: {dados['turma']}\n"
-        f"Diagnóstico: {dados['diagnostico']}"
+        f"Diagnóstico: {diag_display}\n"
+        f"Medicação em uso: {med_display}"
     )
     pdf.multi_cell(0, 6, limpar_texto_pdf(txt_ident))
     
-    # 2. Rede de Apoio
-    if dados['rede_apoio']:
+    # 2. Rede de Apoio (Texto fluido, sem negrito excessivo)
+    if dados['rede_apoio'] or dados['orientacoes_especialistas']:
         pdf.ln(3)
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(0, 6, "Rede de Apoio Multidisciplinar:", 0, 1)
+        pdf.cell(0, 6, "Suporte Multidisciplinar:", 0, 1)
         pdf.set_font("Arial", size=10)
-        pdf.multi_cell(0, 6, limpar_texto_pdf(', '.join(dados['rede_apoio'])))
+        
+        profissionais = ', '.join(dados['rede_apoio']) if dados['rede_apoio'] else "Não especificado"
+        orientacoes = dados['orientacoes_especialistas'] if dados['orientacoes_especialistas'] else "Sem orientações específicas registradas."
+        
+        texto_rede = f"Profissionais: {profissionais}.\nSíntese das Orientações: {orientacoes}"
+        pdf.multi_cell(0, 6, limpar_texto_pdf(texto_rede))
 
     # 3. Relatório IA
     if dados['ia_sugestao']:
@@ -293,6 +307,7 @@ def gerar_docx(dados):
     doc.add_paragraph(f"Estudante: {dados['nome']}")
     doc.add_paragraph(f"Série: {dados['serie']} | Turma: {dados['turma']}")
     doc.add_paragraph(f"Diagnóstico: {dados['diagnostico']}")
+    doc.add_paragraph(f"Medicação: {dados['medicacao']}")
     
     if dados['ia_sugestao']:
         doc.add_heading('Parecer Pedagógico', level=1)
@@ -304,7 +319,8 @@ def gerar_docx(dados):
 # --- 6. ESTADO DA SESSÃO ---
 if 'dados' not in st.session_state:
     st.session_state.dados = {
-        'nome': '', 'nasc': None, 'serie': None, 'turma': '', 'diagnostico': '', 
+        'nome': '', 'nasc': None, 'serie': None, 'turma': '', 
+        'diagnostico': '', 'medicacao': '', 
         'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
         'rede_apoio': [], 'orientacoes_especialistas': '',
         'b_sensorial': [], 'sup_sensorial': '🟡 Monitorado',
@@ -320,7 +336,6 @@ with st.sidebar:
     logo = finding_logo()
     if logo: st.image(logo, width=120)
     
-    # MUDANÇA: Chave agora é OPENAI
     if 'OPENAI_API_KEY' in st.secrets:
         api_key = st.secrets['OPENAI_API_KEY']
         st.success("✅ OpenAI Ativa")
@@ -328,11 +343,11 @@ with st.sidebar:
         api_key = st.text_input("Chave OpenAI (sk-...):", type="password")
         
     st.markdown("---")
-    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.2<br>Powered by GPT-4o</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.3<br>Medication Aware</div>", unsafe_allow_html=True)
 
 # --- 8. LAYOUT PRINCIPAL ---
 
-# CABEÇALHO
+# CABEÇALHO UNIFICADO
 logo_path = finding_logo()
 b64_logo = get_base64_image(logo_path)
 mime = "image/png" if logo_path and logo_path.endswith("png") else "image/jpeg"
@@ -399,7 +414,7 @@ with tab1:
     st.session_state.dados['turma'] = c4.text_input("Turma", st.session_state.dados['turma'])
 
     st.markdown("---")
-    st.markdown("##### 1. Contexto Biopsicossocial")
+    st.markdown("##### 1. Contexto Escolar e Familiar")
     
     ch, cf = st.columns(2)
     with ch:
@@ -409,19 +424,29 @@ with tab1:
         st.info("Rotina, cuidadores, expectativas e estrutura familiar.")
         st.session_state.dados['familia'] = st.text_area("Contexto Familiar", st.session_state.dados['familia'], height=120, label_visibility="collapsed")
 
-    st.markdown("##### 2. Hipótese ou Diagnóstico")
-    st.caption("Preencha após analisar o contexto. O PEI independe de laudo fechado, mas o diagnóstico guia estratégias específicas.")
-    st.session_state.dados['diagnostico'] = st.text_input(
-        "Diagnóstico Clínico", 
-        st.session_state.dados['diagnostico'],
-        placeholder="Ex: TEA Nível 1, TDAH, Dislexia. Para Altas Habilidades, digite 'Altas Habilidades'."
-    )
+    st.markdown("##### 2. Saúde e Diagnóstico")
+    
+    col_d, col_m = st.columns(2)
+    with col_d:
+        st.caption("Diagnóstico (Se vazio, a IA analisará o PDF anexo).")
+        st.session_state.dados['diagnostico'] = st.text_input(
+            "Diagnóstico Clínico", 
+            st.session_state.dados['diagnostico'],
+            placeholder="Ex: TEA, TDAH. Deixe vazio se estiver no laudo anexo."
+        )
+    with col_m:
+        st.caption("Uso de Medicação (Importante para o manejo).")
+        st.session_state.dados['medicacao'] = st.text_input(
+            "Medicação em uso", 
+            st.session_state.dados['medicacao'],
+            placeholder="Ex: Ritalina, Risperidona, Neuleptil..."
+        )
     
     with st.expander("📎 Upload de Laudo (PDF)"):
         up = st.file_uploader("Anexar arquivo", type="pdf")
         if up:
             st.session_state.pdf_text = ler_pdf(up)
-            st.success("PDF processado!")
+            st.success(f"PDF processado! ({len(st.session_state.pdf_text)} caracteres)")
 
 # TAB 2: REDE DE APOIO
 with tab2:
@@ -435,7 +460,7 @@ with tab2:
     )
     
     st.session_state.dados['orientacoes_especialistas'] = st.text_area(
-        "Orientações Técnicas (Resumo)",
+        "Orientações Técnicas e Práticas",
         placeholder="Ex: A Fonoaudióloga solicitou que o aluno tenha mais tempo para respostas orais...",
         height=150
     )
@@ -505,7 +530,7 @@ with tab5:
         st.markdown("""
         <div style="background:#EBF8FF; padding:15px; border-radius:12px; font-size:0.9rem; color:#004E92;">
             <b>Inteligência Neuropsicopedagógica:</b><br>
-            Eu cruzo o perfil do aluno com a BNCC e a Neurociência para sugerir um plano fundamentado e legalmente seguro.
+            Eu cruzo o perfil do aluno (incluindo laudo e medicação) com a BNCC e a Neurociência para sugerir um plano fundamentado.
         </div>
         """, unsafe_allow_html=True)
         st.write("")
@@ -541,7 +566,9 @@ with tab6:
         with c_pdf:
             st.markdown("#### Versão PDF (Final)")
             st.caption("Documento oficial com bordas e formatação institucional.")
-            pdf_bytes = gerar_pdf(st.session_state.dados)
+            # Passa flag se tem anexo
+            tem_anexo = len(st.session_state.pdf_text) > 0
+            pdf_bytes = gerar_pdf(st.session_state.dados, tem_anexo)
             st.download_button("📥 Baixar PDF", pdf_bytes, f"PEI_{st.session_state.dados['nome']}.pdf", "application/pdf", type="primary")
             
         with c_word:
@@ -554,4 +581,4 @@ with tab6:
 
 # Rodapé
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #718096; font-size: 0.8rem;'>PEI 360º v3.2 | Powered by OpenAI</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #718096; font-size: 0.8rem;'>PEI 360º v3.3 | Powered by OpenAI</div>", unsafe_allow_html=True)
