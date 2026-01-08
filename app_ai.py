@@ -16,7 +16,7 @@ def get_favicon():
     return "📘"
 
 st.set_page_config(
-    page_title="PEI 360º | Versão 3.1",
+    page_title="PEI 360º | OpenAI Edition",
     page_icon=get_favicon(),
     layout="wide",
     initial_sidebar_state="expanded"
@@ -39,9 +39,9 @@ def ler_pdf(arquivo):
     try:
         reader = PdfReader(arquivo)
         texto = ""
-        # Limita a 4 páginas para não sobrecarregar a IA
+        # O GPT-4 suporta janelas de contexto maiores, podemos ler mais páginas
         for i, page in enumerate(reader.pages):
-            if i >= 4: break 
+            if i >= 6: break 
             texto += page.extract_text() + "\n"
         return texto
     except Exception as e: return f"Erro ao ler PDF: {e}"
@@ -54,7 +54,7 @@ def limpar_texto_pdf(texto):
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
     return texto
 
-# --- 3. CSS "CLEAN" (SEM COMENTÁRIOS PARA EVITAR ERRO VISUAL) ---
+# --- 3. CSS UNIFICADO (DESIGN SYSTEM ARCO) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -135,67 +135,75 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. INTELIGÊNCIA ARTIFICIAL (CORREÇÃO DE TIMEOUT) ---
-def consultar_ia_v3(api_key, dados, contexto_pdf=""):
-    if not api_key: return None, "⚠️ Configure a Chave API na barra lateral."
+# --- 4. INTELIGÊNCIA ARTIFICIAL (OPENAI - GPT-4o-mini) ---
+def consultar_gpt(api_key, dados, contexto_pdf=""):
+    if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
     try:
-        # AQUI ESTÁ A CORREÇÃO DO ERRO DE CONEXÃO: timeout=60
-        client = OpenAI(
-            api_key=api_key, 
-            base_url="https://api.deepseek.com",
-            timeout=60.0 
-        )
+        # Cliente OpenAI Padrão
+        client = OpenAI(api_key=api_key)
         
-        # Limpa o texto para economizar tokens
-        contexto_seguro = contexto_pdf[:2000] if contexto_pdf else "Sem laudo anexado."
+        # Limpeza e preparação de contexto
+        contexto_seguro = contexto_pdf[:4000] if contexto_pdf else "Sem laudo anexado."
         
+        # Definição de Perfil (AH/SD vs Dificuldades)
         is_ahsd = "altas habilidades" in dados['diagnostico'].lower() or "superdotação" in dados['diagnostico'].lower()
-        foco = "ENRIQUECIMENTO E APROFUNDAMENTO" if is_ahsd else "FLEXIBILIZAÇÃO E ACESSIBILIDADE"
+        foco_estrategico = "ENRIQUECIMENTO E APROFUNDAMENTO (Bloom Nível Superior)" if is_ahsd else "FLEXIBILIZAÇÃO E SUPORTE (DUA - Desenho Universal)"
 
+        # Prompt de Sistema (Role) - Neuropsicopedagogo
         prompt_sistema = """
-        Você é o Especialista Pedagógico Sênior do PEI 360.
-        Gere o texto do PEI conectando Neurociência (Funções Executivas) e BNCC.
-        Seja técnico, mas claro. Use parágrafos fluidos.
+        Você é um Neuropsicopedagogo Sênior especialista em LBI (Lei Brasileira de Inclusão) e BNCC.
+        Sua tarefa: Redigir o PEI (Plano de Ensino Individualizado) oficial.
+        
+        Regras de Ouro:
+        1. CRUZE DADOS: Se o aluno tem "Memória Curta" (Mapeamento), justifique o uso de "Pistas Visuais" (Estratégia).
+        2. BASE LEGAL: Garanta que o texto esteja em conformidade com o Decreto 12.686/2025 (Brasil).
+        3. TOM DE VOZ: Profissional, acolhedor e técnico.
+        4. BNCC: Cite explicitamente códigos da BNCC adequados à série do aluno.
         """
 
+        # Prompt do Usuário (Dados)
         prompt_usuario = f"""
-        ALUNO: {dados['nome']} | SÉRIE: {dados['serie']} | TURMA: {dados['turma']}
-        CONTEXTO: {dados['historico']} | FAMÍLIA: {dados['familia']}
-        DIAGNÓSTICO: {dados['diagnostico']} ({foco})
-        HIPERFOCO: {dados['hiperfoco']}
+        PERFIL DO ESTUDANTE:
+        Nome: {dados['nome']} | Série: {dados['serie']} | Turma: {dados['turma']}
+        Diagnóstico: {dados['diagnostico']} ({foco_estrategico})
+        Hiperfoco/Interesses: {dados['hiperfoco']}
         
-        REDE DE APOIO: {', '.join(dados['rede_apoio'])}
-        ORIENTAÇÕES CLÍNICAS: {dados['orientacoes_especialistas']}
+        CONTEXTO BIOPSICOSSOCIAL:
+        - Histórico Escolar: {dados['historico']}
+        - Família: {dados['familia']}
+        - Rede de Apoio (Incluir recomendações): {', '.join(dados['rede_apoio'])} | {dados['orientacoes_especialistas']}
         
-        BARREIRAS MAPEADAS:
+        MAPEAMENTO DE BARREIRAS (Neurociência):
         - Sensorial: {', '.join(dados['b_sensorial'])}
-        - Cognitivo: {', '.join(dados['b_cognitiva'])}
+        - Cognitivo (Funções Executivas): {', '.join(dados['b_cognitiva'])}
         - Social: {', '.join(dados['b_social'])}
         
-        ESTRATÉGIAS DA ESCOLA:
+        ESTRATÉGIAS PEDAGÓGICAS DEFINIDAS:
         - Acesso: {', '.join(dados['estrategias_acesso'])}
         - Ensino: {', '.join(dados['estrategias_ensino'])}
         - Avaliação: {', '.join(dados['estrategias_avaliacao'])}
         
-        LAUDO (RESUMO): {contexto_seguro}
+        RESUMO DO LAUDO MÉDICO: {contexto_seguro}
         
-        GERE O RELATÓRIO:
-        1. ANÁLISE DO PERFIL: Cruze histórico, diagnóstico e barreiras.
-        2. FOCO NA BNCC: Cite 1 Habilidade Essencial da série e como adaptá-la.
-        3. PLANO DE INTERVENÇÃO: Detalhe como as estratégias escolhidas serão aplicadas.
-        4. CONCLUSÃO: Parecer final.
+        GERE O RELATÓRIO ESTRUTURADO:
+        1. CARACTERIZAÇÃO DO ESTUDANTE: Sintetize o perfil cruzando histórico, diagnóstico e o impacto das barreiras nas funções executivas.
+        2. PLANEJAMENTO CURRICULAR (BNCC): Selecione 1 Habilidade Essencial da {dados['serie']} e descreva como adaptá-la usando o Hiperfoco do aluno.
+        3. ESTRATÉGIAS DE INTERVENÇÃO: Explique COMO aplicar as estratégias selecionadas (ex: como usar o ledor, como fracionar tarefas) baseando-se na neurociência.
+        4. PARECER FINAL: Conclusão sobre a viabilidade do plano e recomendações à família.
         """
         
         response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}],
-            temperature=0.7,
-            stream=False
+            model="gpt-4o-mini", # Modelo rápido, barato e inteligente (ou gpt-4o se preferir)
+            messages=[
+                {"role": "system", "content": prompt_sistema},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            temperature=0.7
         )
         return response.choices[0].message.content, None
     except Exception as e: 
-        return None, f"Erro de IA: {str(e)}. (Tente reduzir o texto do PDF se persistir)."
+        return None, f"Erro OpenAI: {str(e)}. Verifique sua chave API ou saldo."
 
 # --- 5. PDF EXECUTIVO ---
 class PDF_V3(FPDF):
@@ -218,14 +226,14 @@ class PDF_V3(FPDF):
         self.set_xy(x_offset, 22)
         self.set_font('Arial', 'I', 9)
         self.set_text_color(100)
-        self.cell(0, 5, 'Documento Oficial de Planejamento Pedagógico', 0, 1, 'L')
+        self.cell(0, 5, 'Documento Oficial de Planejamento Pedagógico | LBI & BNCC', 0, 1, 'L')
         self.ln(15)
 
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128)
-        self.cell(0, 10, f'Gerado via PEI 360º | Página {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, f'Gerado via PEI 360º (GPT-Powered) | Página {self.page_no()}', 0, 0, 'C')
 
     def section_title(self, label):
         self.ln(5)
@@ -312,18 +320,19 @@ with st.sidebar:
     logo = finding_logo()
     if logo: st.image(logo, width=120)
     
-    if 'DEEPSEEK_API_KEY' in st.secrets:
-        api_key = st.secrets['DEEPSEEK_API_KEY']
-        st.success("✅ Sistema Online")
+    # MUDANÇA: Chave agora é OPENAI
+    if 'OPENAI_API_KEY' in st.secrets:
+        api_key = st.secrets['OPENAI_API_KEY']
+        st.success("✅ OpenAI Ativa")
     else:
-        api_key = st.text_input("Chave API:", type="password")
+        api_key = st.text_input("Chave OpenAI (sk-...):", type="password")
         
     st.markdown("---")
-    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.1<br>Versão Estável</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.2<br>Powered by GPT-4o</div>", unsafe_allow_html=True)
 
 # --- 8. LAYOUT PRINCIPAL ---
 
-# CABEÇALHO (AGORA COM A MESMA CLASSE 'UNIFIED-CARD')
+# CABEÇALHO
 logo_path = finding_logo()
 b64_logo = get_base64_image(logo_path)
 mime = "image/png" if logo_path and logo_path.endswith("png") else "image/jpeg"
@@ -353,14 +362,14 @@ with tab0:
         <div class="unified-card interactive-card">
             <div class="icon-box"><i class="ri-book-read-line"></i></div>
             <h4>O que é o PEI?</h4>
-            <p>O PEI não é um favor, é um direito. Ele materializa a acessibilidade curricular, garantindo que o aluno aprenda do seu jeito, conforme a LBI.</p>
+            <p>O PEI materializa o direito à educação. Adaptamos o método, o tempo e a avaliação para garantir o acesso ao currículo, conforme LBI e BNCC.</p>
         </div>""", unsafe_allow_html=True)
     with c2:
         st.markdown("""
         <div class="unified-card interactive-card">
             <div class="icon-box"><i class="ri-scales-3-line"></i></div>
-            <h4>Segurança Jurídica</h4>
-            <p>Este sistema segue o Decreto 12.686/2025. O PEI deve ser elaborado com base nas barreiras, independente de laudo médico fechado.</p>
+            <h4>Legalidade e Direito</h4>
+            <p>Em conformidade com o Decreto 12.686/2025. O PEI deve ser elaborado com base nas barreiras, independente de laudo médico fechado.</p>
         </div>""", unsafe_allow_html=True)
 
     c3, c4 = st.columns(2)
@@ -368,18 +377,18 @@ with tab0:
         st.markdown("""
         <div class="unified-card interactive-card">
             <div class="icon-box"><i class="ri-brain-line"></i></div>
-            <h4>Neurociência</h4>
-            <p>Focamos nas Funções Executivas. Entendemos como o cérebro do seu aluno funciona para propor estratégias que realmente engajam.</p>
+            <h4>Neurociência Aplicada</h4>
+            <p>O sistema cruza as Funções Executivas (Memória, Atenção) com as estratégias pedagógicas para maximizar a aprendizagem.</p>
         </div>""", unsafe_allow_html=True)
     with c4:
         st.markdown("""
         <div class="unified-card interactive-card">
             <div class="icon-box"><i class="ri-compass-3-line"></i></div>
-            <h4>Conexão BNCC</h4>
-            <p>Não criamos um currículo paralelo. Adaptamos as Habilidades Essenciais da BNCC para garantir equidade de oportunidades.</p>
+            <h4>Base Nacional (BNCC)</h4>
+            <p>Garantimos as Aprendizagens Essenciais. O sistema sugere adaptações específicas para as habilidades de cada ano/série.</p>
         </div>""", unsafe_allow_html=True)
 
-# TAB 1: ESTUDANTE (FLUXO CORRIGIDO)
+# TAB 1: ESTUDANTE
 with tab1:
     st.markdown("### <i class='ri-user-smile-line'></i> Dossiê do Estudante", unsafe_allow_html=True)
     
@@ -390,34 +399,34 @@ with tab1:
     st.session_state.dados['turma'] = c4.text_input("Turma", st.session_state.dados['turma'])
 
     st.markdown("---")
-    st.markdown("##### 1. Contexto (O aluno vem antes do laudo)")
+    st.markdown("##### 1. Contexto Biopsicossocial")
     
     ch, cf = st.columns(2)
     with ch:
-        st.info("Descreva brevemente a trajetória escolar (escolas anteriores, retenções, avanços).")
+        st.info("Trajetória escolar (escolas anteriores, retenções, avanços, relação com a escola).")
         st.session_state.dados['historico'] = st.text_area("Histórico Escolar", st.session_state.dados['historico'], height=120, label_visibility="collapsed")
     with cf:
-        st.info("Qual a rotina em casa? Quem cuida? Quais as expectativas da família?")
+        st.info("Rotina, cuidadores, expectativas e estrutura familiar.")
         st.session_state.dados['familia'] = st.text_area("Contexto Familiar", st.session_state.dados['familia'], height=120, label_visibility="collapsed")
 
-    st.markdown("##### 2. Saúde e Diagnóstico")
-    st.caption("Preencha após analisar o contexto escolar e familiar.")
+    st.markdown("##### 2. Hipótese ou Diagnóstico")
+    st.caption("Preencha após analisar o contexto. O PEI independe de laudo fechado, mas o diagnóstico guia estratégias específicas.")
     st.session_state.dados['diagnostico'] = st.text_input(
-        "Diagnóstico Clínico (ou hipótese)", 
+        "Diagnóstico Clínico", 
         st.session_state.dados['diagnostico'],
-        placeholder="Ex: TEA Nível 1, TDAH Misto. Se for Altas Habilidades, especifique aqui."
+        placeholder="Ex: TEA Nível 1, TDAH, Dislexia. Para Altas Habilidades, digite 'Altas Habilidades'."
     )
     
-    with st.expander("📎 Upload de Laudo Médico (PDF) - Opcional"):
-        up = st.file_uploader("Arraste o arquivo aqui", type="pdf")
+    with st.expander("📎 Upload de Laudo (PDF)"):
+        up = st.file_uploader("Anexar arquivo", type="pdf")
         if up:
             st.session_state.pdf_text = ler_pdf(up)
-            st.success("PDF analisado com sucesso!")
+            st.success("PDF processado!")
 
 # TAB 2: REDE DE APOIO
 with tab2:
-    st.markdown("### <i class='ri-team-line'></i> Rede de Apoio Externa", unsafe_allow_html=True)
-    st.info("A escola não atua sozinha. Registre aqui os parceiros clínicos.")
+    st.markdown("### <i class='ri-team-line'></i> Rede de Apoio Multidisciplinar", unsafe_allow_html=True)
+    st.info("A inclusão acontece em rede. Registre os parceiros clínicos do estudante.")
     
     c_rede1, c_rede2 = st.columns(2)
     st.session_state.dados['rede_apoio'] = c_rede1.multiselect(
@@ -427,13 +436,13 @@ with tab2:
     
     st.session_state.dados['orientacoes_especialistas'] = st.text_area(
         "Orientações Técnicas (Resumo)",
-        placeholder="Ex: A Fonoaudióloga solicitou que o aluno sente na frente e tenha pistas visuais...",
+        placeholder="Ex: A Fonoaudióloga solicitou que o aluno tenha mais tempo para respostas orais...",
         height=150
     )
 
 # TAB 3: MAPEAMENTO
 with tab3:
-    st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento de Barreiras", unsafe_allow_html=True)
+    st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento de Barreiras e Potencialidades", unsafe_allow_html=True)
     
     st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco / Interesses (A chave para o engajamento)", placeholder="Ex: Dinossauros, Minecraft, Futebol, Desenho...")
     
@@ -459,16 +468,15 @@ with tab3:
 
 # TAB 4: PLANO DE AÇÃO
 with tab4:
-    st.markdown("### <i class='ri-tools-line'></i> Estratégias Pedagógicas", unsafe_allow_html=True)
-    st.caption("Selecione os recursos para eliminar as barreiras mapeadas.")
+    st.markdown("### <i class='ri-tools-line'></i> Estratégias Pedagógicas (DUA)", unsafe_allow_html=True)
+    st.caption("Selecione os recursos de Desenho Universal para Aprendizagem.")
     
     c_acesso, c_ensino = st.columns(2)
     with c_acesso:
         st.markdown("#### 1. Acesso ao Currículo")
-        # TERMO CORRIGIDO ABAIXO
         st.session_state.dados['estrategias_acesso'] = st.multiselect(
             "Recursos de Acessibilidade:", 
-            ["Tempo Estendido (+25%)", "Apoio à Leitura e Escrita", "Material Ampliado", "Sala com Redução de Estímulos", "Uso de Tecnologia/Tablet", "Pausas Sensoriais"],
+            ["Tempo Estendido (+25%)", "Apoio à Leitura e Escrita (Ledor/Escriba)", "Material Ampliado", "Sala com Redução de Estímulos", "Uso de Tecnologia/Tablet", "Pausas Sensoriais"],
             placeholder="Selecione..."
         )
         
@@ -490,15 +498,14 @@ with tab4:
 
 # TAB 5: CONSULTORIA IA
 with tab5:
-    st.markdown("### <i class='ri-robot-2-line'></i> Consultoria Pedagógica Inteligente", unsafe_allow_html=True)
+    st.markdown("### <i class='ri-robot-2-line'></i> Consultoria Pedagógica (GPT-4o)", unsafe_allow_html=True)
     
     col_btn, col_txt = st.columns([1, 2])
     with col_btn:
         st.markdown("""
         <div style="background:#EBF8FF; padding:15px; border-radius:12px; font-size:0.9rem; color:#004E92;">
-            <b>Como eu funciono:</b><br>
-            Eu analiso o histórico, as orientações dos médicos e as barreiras que você mapeou. 
-            Em seguida, cruzo tudo com a BNCC para sugerir um plano de aula viável.
+            <b>Inteligência Neuropsicopedagógica:</b><br>
+            Eu cruzo o perfil do aluno com a BNCC e a Neurociência para sugerir um plano fundamentado e legalmente seguro.
         </div>
         """, unsafe_allow_html=True)
         st.write("")
@@ -506,8 +513,8 @@ with tab5:
             if not st.session_state.dados['nome']:
                 st.error("⚠️ Preencha o nome do aluno na aba 'Estudante'.")
             else:
-                with st.spinner("Conectando com DeepSeek... (Isso pode levar alguns segundos)"):
-                    res, err = consultar_ia_v3(api_key, st.session_state.dados, st.session_state.pdf_text)
+                with st.spinner("Consultando OpenAI (Neurociência + BNCC)..."):
+                    res, err = consultar_gpt(api_key, st.session_state.dados, st.session_state.pdf_text)
                     if err: 
                         st.error(err)
                     else: 
@@ -516,7 +523,7 @@ with tab5:
     
     with col_txt:
         if st.session_state.dados['ia_sugestao']:
-            st.text_area("Parecer Técnico (Pode editar):", st.session_state.dados['ia_sugestao'], height=500)
+            st.text_area("Parecer Técnico (Editável):", st.session_state.dados['ia_sugestao'], height=500)
         else:
             st.markdown("""
             <div style='padding:50px; text-align:center; color:#A0AEC0; border:2px dashed #CBD5E0; border-radius:12px;'>
@@ -547,4 +554,4 @@ with tab6:
 
 # Rodapé
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #718096; font-size: 0.8rem;'>PEI 360º Versão 3.1 | Tecnologia Educacional Inclusiva</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #718096; font-size: 0.8rem;'>PEI 360º v3.2 | Powered by OpenAI</div>", unsafe_allow_html=True)
