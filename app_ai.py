@@ -54,7 +54,7 @@ def limpar_texto_pdf(texto):
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
     return texto
 
-# --- 3. CSS (DESIGN CLEAN & PROFISSIONAL) ---
+# --- 3. CSS (DESIGN FINAL POLIDO) ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -70,7 +70,7 @@ st.markdown("""
 
     div[data-baseweb="tab-highlight"] { background-color: transparent !important; }
 
-    /* CARD UNIFICADO */
+    /* CARD COMUM */
     .unified-card {
         background-color: white;
         padding: 25px;
@@ -86,17 +86,17 @@ st.markdown("""
         box-shadow: 0 8px 15px rgba(0,78,146,0.08);
     }
 
-    /* HEADER LIMPO */
+    /* HEADER LIMPO (Proporção Ajustada) */
     .header-clean {
         background-color: white;
-        padding: 20px 30px;
+        padding: 35px 40px; /* Aumentado para dar mais corpo ao cabeçalho */
         border-radius: var(--card-radius);
         border: 1px solid #EDF2F7;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-        margin-bottom: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        margin-bottom: 30px;
         display: flex;
         align-items: center;
-        gap: 25px;
+        gap: 30px;
     }
 
     /* ABAS */
@@ -133,7 +133,6 @@ st.markdown("""
         border-radius: 12px !important;
         border-color: #E2E8F0 !important;
     }
-    /* Estilo do texto de ajuda (help) */
     .stTooltipIcon { color: var(--brand-blue) !important; }
 
     div[data-testid="column"] .stButton button {
@@ -146,7 +145,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. IA (PROMPT ROBUSTO E CRUZADO) ---
+# --- 4. IA (PROMPT ROBUSTO) ---
 def consultar_gpt(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
@@ -193,7 +192,7 @@ def consultar_gpt(api_key, dados, contexto_pdf=""):
         LAUDO PDF (Conteúdo extraído): {contexto_seguro}
         
         GERE O RELATÓRIO TÉCNICO:
-        1. ANÁLISE DE PERFIL: Integre diagnóstico, medicação e histórico.
+        1. ANÁLISE DE PERFIL: Integre diagnóstico, medicação, histórico e potencialidades.
         2. ANÁLISE BNCC: Cite 1 Habilidade Essencial da {dados['serie']} e como adaptá-la.
         3. PLANO DE AÇÃO: Detalhe a aplicação das estratégias selecionadas.
         4. PARECER FINAL: Conclusão fundamentada.
@@ -207,7 +206,7 @@ def consultar_gpt(api_key, dados, contexto_pdf=""):
         return response.choices[0].message.content, None
     except Exception as e: return None, f"Erro OpenAI: {str(e)}."
 
-# --- 5. PDF (SEM TÍTULO REDUNDANTE) ---
+# --- 5. PDF ---
 class PDF_V3(FPDF):
     def header(self):
         self.set_draw_color(0, 78, 146)
@@ -338,21 +337,21 @@ with st.sidebar:
         api_key = st.text_input("Chave OpenAI (sk-...):", type="password")
         
     st.markdown("---")
-    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.7<br>Final Release</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.8rem; color:#A0AEC0;'>PEI 360º v3.8<br>Final Polished</div>", unsafe_allow_html=True)
 
 # --- 8. LAYOUT ---
 
-# CABEÇALHO LIMPO
+# CABEÇALHO LIMPO (Proporção Ajustada)
 logo_path = finding_logo()
 b64_logo = get_base64_image(logo_path)
 mime = "image/png" if logo_path and logo_path.endswith("png") else "image/jpeg"
-img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 70px;">' if logo_path else ""
+img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 80px;">' if logo_path else "" # Aumentei levemente a logo
 
 st.markdown(f"""
     <div class="header-clean">
         {img_html}
         <div>
-            <p style="margin: 0; color: #004E92; font-size: 1.2rem; font-weight: 700;">Ecossistema de Inteligência Pedagógica e Inclusiva</p>
+            <p style="margin: 0; color: #004E92; font-size: 1.3rem; font-weight: 800;">Ecossistema de Inteligência Pedagógica e Inclusiva</p>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -396,7 +395,7 @@ with tab0:
             <p>Garantia das Aprendizagens Essenciais através da flexibilização curricular.</p>
         </div>""", unsafe_allow_html=True)
 
-# TAB 1: ESTUDANTE (SEM CAIXAS AZUIS, COM HELP E CAPTION)
+# TAB 1: ESTUDANTE
 with tab1:
     st.markdown("### <i class='ri-user-smile-line'></i> Dossiê do Estudante", unsafe_allow_html=True)
     
@@ -411,7 +410,6 @@ with tab1:
     
     ch, cf = st.columns(2)
     with ch:
-        # Texto explicativo movido para o parâmetro help
         st.session_state.dados['historico'] = st.text_area(
             "Histórico Escolar", 
             st.session_state.dados['historico'], 
@@ -467,12 +465,13 @@ with tab2:
         help="O que a escola precisa fazer para seguir a linha de trabalho dos terapeutas?"
     )
 
-# TAB 3: MAPEAMENTO
+# TAB 3: MAPEAMENTO (SEM EMOJI)
 with tab3:
     st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento Integral", unsafe_allow_html=True)
     
     with st.container(border=True):
-        st.markdown("#### 🌟 Potencialidades e Hiperfoco")
+        # Substituído emoji por ícone flat
+        st.markdown("#### <i class='ri-lightbulb-flash-line' style='color: var(--brand-blue);'></i> Potencialidades e Hiperfoco", unsafe_allow_html=True)
         cp1, cp2 = st.columns(2)
         with cp1:
             st.session_state.dados['hiperfoco'] = st.text_input(
@@ -485,7 +484,7 @@ with tab3:
                 "Pontos Fortes", 
                 ["Memória Visual", "Lógica Matemática", "Criatividade", "Oralidade", "Tecnologia", "Artes", "Música", "Liderança"], 
                 placeholder="Selecione...",
-                key="potencias_v37"
+                key="potencias_v38"
             )
 
     st.markdown("#### Barreiras e Suporte")
@@ -517,7 +516,7 @@ with tab4:
             "Recursos de Acessibilidade:", 
             ["Tempo Estendido (+25%)", "Apoio à Leitura e Escrita", "Material Ampliado", "Sala com Redução de Estímulos", "Tecnologia Assistiva", "Pausas Sensoriais"],
             placeholder="Selecione...",
-            key="acesso_v37"
+            key="acesso_v38"
         )
     with c_ensino:
         st.markdown("#### 2. Metodologia de Ensino")
@@ -525,7 +524,7 @@ with tab4:
             "Estratégias Didáticas:", 
             ["Fragmentação de Tarefas", "Pistas Visuais", "Enriquecimento Curricular (AH/SD)", "Antecipação de Rotina", "Projetos Práticos"],
             placeholder="Selecione...",
-            key="ensino_v37"
+            key="ensino_v38"
         )
     
     st.write("")
@@ -534,7 +533,7 @@ with tab4:
         "Formato Avaliativo:", 
         ["Prova Adaptada", "Consulta Permitida", "Avaliação Oral", "Trabalho Prático", "Enunciados Curtos"],
         placeholder="Selecione...",
-        key="aval_v37"
+        key="aval_v38"
     )
 
 # TAB 5: IA (TEXTO AMIGÁVEL)
@@ -582,4 +581,4 @@ with tab6:
         st.warning("Primeiro, gere o plano na aba de Consultoria IA.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v3.7 | Powered by OpenAI</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v3.8 | Powered by OpenAI</div>", unsafe_allow_html=True)
