@@ -2,7 +2,6 @@ import streamlit as st
 from datetime import date
 from io import BytesIO
 from docx import Document
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 from openai import OpenAI
 from pypdf import PdfReader
@@ -48,12 +47,9 @@ def ler_pdf(arquivo):
 
 def limpar_texto_pdf(texto):
     if not texto: return ""
-    # Substituições para evitar erros de encoding (as interrogações)
-    texto = texto.replace('–', '-').replace('“', '"').replace('”', '"')
-    texto = texto.replace('’', "'").replace('•', '-')
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
-    # Remove caracteres não-latin-1 (emojis, simbolos matematicos complexos)
+    texto = texto.replace('* ', '• ')
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
     return texto
 
@@ -110,7 +106,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. IA (PROMPT COM BNCC EXPANDIDA E NARRATIVA) ---
+# --- 4. IA (PROMPT COM FORMATACAO ESTRUTURADA) ---
 def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
@@ -118,17 +114,15 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         client = OpenAI(api_key=api_key)
         contexto_seguro = contexto_pdf[:5000] if contexto_pdf else "Sem laudo anexado."
         
-        # Evidências
-        evidencias_texto = "\n".join([f"- {k}" for k, v in dados['checklist_evidencias'].items() if v])
+        # Limpa interrogações das evidências para a IA ler como afirmações
+        evidencias_texto = "\n".join([f"- {k.replace('?', '')}" for k, v in dados['checklist_evidencias'].items() if v])
         
-        # Medicação
         meds_texto = ""
         if dados['lista_medicamentos']:
             for m in dados['lista_medicamentos']:
                 meds_texto += f"- {m['nome']} ({m['posologia']}). Admin na escola: {'SIM' if m['escola'] else 'NÃO'}.\n"
         else: meds_texto = "Nenhuma medicação informada."
 
-        # Mapeamento
         mapeamento_texto = ""
         for categoria, itens in dados['barreiras_selecionadas'].items():
             if itens:
@@ -141,57 +135,43 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
 
         prompt_sistema = """
         Você é um Neuropsicopedagogo Sênior.
-        Sua missão: Construir um PEI (Plano de Ensino Individualizado) completo, técnico e humanizado.
+        Sua missão é construir um PEI (Plano de Ensino Individualizado) centrado no estudante.
         
-        REGRAS DE FORMATAÇÃO PARA PDF:
-        1. NÃO use caracteres especiais como emojis, negrito com asteriscos ou bullets complexos. Use apenas hífens (-) para listas.
-        2. Use CAIXA ALTA para os títulos das seções (ex: 1. PERFIL DO ESTUDANTE) para criar destaque visual sem formatação rica.
-        3. Dê espaçamento duplo entre parágrafos.
+        ESTRUTURA OBRIGATÓRIA PARA FORMATAÇÃO DO PDF:
+        Para garantir que o documento final fique bem formatado, use EXATAMENTE a numeração abaixo para os títulos principais.
+        1. PERFIL BIOPSICOSSOCIAL DO ESTUDANTE
+        2. PLANEJAMENTO CURRICULAR E BNCC
+        3. DIRETRIZES PRÁTICAS PARA ADAPTAÇÃO
+        4. PLANO DE INTERVENÇÃO E ESTRATÉGIAS
+        5. PARECER FINAL E RECOMENDAÇÕES
         
-        REGRAS PEDAGÓGICAS:
-        1. DIAGNÓSTICO: Se o campo 'Diagnóstico' vier vazio, PROCURE NO TEXTO DO LAUDO (PDF) e use-o.
-        2. NARRATIVA: O primeiro tópico deve ser um texto corrido contando a história do aluno (quem é, família, histórico) de forma acolhedora.
-        3. BNCC DUPLA: Cite habilidades do ANO ATUAL (Essenciais) e habilidades de ANOS ANTERIORES (Recomposição/Pré-requisitos).
+        DIRETRIZES DE CONTEÚDO:
+        - Comece o ponto 1 narrando a história do aluno (Histórico, Família) antes de entrar nos aspectos clínicos.
+        - No ponto 2, cite Habilidades Essenciais do ano atual E Habilidades de Recomposição de anos anteriores.
+        - No ponto 3, DÊ EXEMPLOS PRÁTICOS de como usar o Hiperfoco para adaptar atividades.
         """
 
         prompt_usuario = f"""
         ESTUDANTE: {dados['nome']} | Série: {dados['serie']} | Turma: {dados['turma']}
-        DIAGNÓSTICO INFORMADO: {dados['diagnostico']} (Se vazio, busque no laudo abaixo).
-        
-        MEDICAÇÕES:
-        {meds_texto}
+        DIAGNÓSTICO: {dados['diagnostico']} (Se vazio, busque no laudo).
+        MEDICAÇÕES: {meds_texto}
         
         QUEM É O ESTUDANTE:
         Histórico: {dados['historico']}
         Família: {dados['familia']}
         
         EVIDÊNCIAS DE SALA: {evidencias_texto}
-        BARREIRAS E NÍVEIS: {mapeamento_texto}
+        BARREIRAS: {mapeamento_texto}
         POTENCIALIDADES: Hiperfoco: {dados['hiperfoco']} | Fortes: {', '.join(dados['potencias'])}
         
-        ESTRATÉGIAS SELECIONADAS: 
+        ESTRATÉGIAS: 
         Acesso: {', '.join(dados['estrategias_acesso'])}
         Ensino: {', '.join(dados['estrategias_ensino'])}
         Avaliação: {', '.join(dados['estrategias_avaliacao'])}
         
-        CONTEÚDO DO LAUDO (PDF): {contexto_seguro}
+        LAUDO: {contexto_seguro}
         
-        GERE O RELATÓRIO SEGUINDO ESTA ESTRUTURA (Use CAIXA ALTA nos títulos):
-        
-        1. PERFIL BIOPSICOSSOCIAL DO ESTUDANTE
-        (Escreva um texto narrativo e fluido integrando histórico, família e perfil, finalizando com o diagnóstico e medicação).
-
-        2. PLANEJAMENTO CURRICULAR E BNCC
-        - Habilidades Essenciais ({dados['serie']}): [Liste 2 ou 3]
-        - Habilidades de Recomposição/Defasagem (Anos Anteriores): [Liste 1 ou 2 fundamentais]
-
-        3. DIRETRIZES PRÁTICAS PARA ADAPTAÇÃO
-        (Dê 3 exemplos práticos de como adaptar atividades usando o Hiperfoco: {dados['hiperfoco']}).
-
-        4. PLANO DE INTERVENÇÃO E ESTRATÉGIAS
-        (Detalhe como usar as estratégias selecionadas para as evidências de sala).
-
-        5. PARECER FINAL E RECOMENDAÇÕES
+        GERE O RELATÓRIO TÉCNICO SEGUINDO A NUMERAÇÃO 1 A 5 ESTRITAMENTE.
         """
         
         response = client.chat.completions.create(
@@ -202,25 +182,21 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         return response.choices[0].message.content, None
     except Exception as e: return None, f"Erro OpenAI: {str(e)}."
 
-# --- 5. PDF (CABEÇALHO ALINHADO E FORMATAÇÃO) ---
+# --- 5. PDF (FORMATADOR INTELIGENTE) ---
 class PDF_V3(FPDF):
     def header(self):
         self.set_draw_color(0, 78, 146); self.set_line_width(0.4)
         self.rect(5, 5, 200, 287)
-        
         logo = finding_logo()
-        # Ajuste para alinhar logo e título na mesma linha visual
         if logo: 
-            self.image(logo, 12, 12, 22) # x, y, w
+            self.image(logo, 12, 12, 22)
             x_offset = 40
         else: 
             x_offset = 12
-        
         self.set_xy(x_offset, 16) 
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 78, 146)
         self.cell(0, 8, 'PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'L')
-        
         self.set_xy(x_offset, 23)
         self.set_font('Arial', 'I', 10)
         self.set_text_color(100)
@@ -246,19 +222,8 @@ def gerar_pdf(dados, tem_anexo):
     pdf.section_title("1. IDENTIFICAÇÃO E CONTEXTO")
     pdf.set_font("Arial", size=10); pdf.set_text_color(0)
     
-    # String de medicação
-    med_str = ""
-    if dados['lista_medicamentos']:
-        med_list = []
-        for m in dados['lista_medicamentos']:
-            admin = " (Admin. Escola)" if m['escola'] else ""
-            med_list.append(f"{m['nome']} - {m['posologia']}{admin}")
-        med_str = "; ".join(med_list)
-    else:
-        med_str = "Não informado / Não faz uso."
-
-    # Lógica de Diagnóstico (Prioriza input, senão PDF avisado)
-    diag = dados['diagnostico'] if dados['diagnostico'] else ("Vide análise detalhada no parecer técnico (extraído do laudo)" if tem_anexo else "Não informado")
+    med_str = "; ".join([f"{m['nome']} ({m['posologia']})" for m in dados['lista_medicamentos']]) if dados['lista_medicamentos'] else "Não informado / Não faz uso."
+    diag = dados['diagnostico'] if dados['diagnostico'] else ("Vide análise detalhada no parecer técnico" if tem_anexo else "Não informado")
     
     pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Nome:", 0, 0); pdf.set_font("Arial", '', 10); pdf.cell(0, 6, dados['nome'], 0, 1)
     pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Nascimento:", 0, 0); pdf.set_font("Arial", '', 10); pdf.cell(0, 6, str(dados['nasc']), 0, 1)
@@ -269,20 +234,32 @@ def gerar_pdf(dados, tem_anexo):
     pdf.ln(2)
     pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Família:", 0, 0); pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 6, dados['composicao_familiar'])
 
-    # 2. Evidências (Se houver)
-    evidencias = [k for k, v in dados['checklist_evidencias'].items() if v]
+    # 2. Evidências (Sem interrogações)
+    evidencias = [k.replace('?', '') for k, v in dados['checklist_evidencias'].items() if v]
     if evidencias:
         pdf.section_title("2. PONTOS DE ATENÇÃO (EVIDÊNCIAS OBSERVADAS)")
         pdf.set_font("Arial", size=10)
-        pdf.multi_cell(0, 6, limpar_texto_pdf('; '.join(evidencias)))
+        pdf.multi_cell(0, 6, limpar_texto_pdf('; '.join(evidencias) + '.'))
 
-    # 3. Relatório IA (Sem título extra, o próprio texto da IA trará os títulos em caixa alta)
+    # 3. Relatório IA (Formatador de Títulos)
     if dados['ia_sugestao']:
         pdf.ln(5)
-        txt_ia = limpar_texto_pdf(dados['ia_sugestao'])
-        pdf.multi_cell(0, 6, txt_ia)
+        # Processa o texto linha por linha para achar títulos e negritar
+        linhas = dados['ia_sugestao'].split('\n')
+        for linha in linhas:
+            linha_limpa = limpar_texto_pdf(linha)
+            # Verifica se é um título numérico (1., 2., 3., 4., 5.)
+            if re.match(r'^[1-5]\.', linha_limpa.strip()):
+                pdf.ln(4)
+                pdf.set_fill_color(240, 248, 255)
+                pdf.set_text_color(0, 78, 146)
+                pdf.set_font('Arial', 'B', 11)
+                pdf.cell(0, 8, f"  {linha_limpa}", 0, 1, 'L', fill=True)
+                pdf.set_text_color(0) # Volta pra preto
+                pdf.set_font("Arial", size=10)
+            else:
+                pdf.multi_cell(0, 6, linha_limpa)
         
-    # Assinaturas
     pdf.ln(25)
     y = pdf.get_y()
     if y > 250: pdf.add_page(); y = 40
@@ -304,7 +281,7 @@ default_state = {
     'composicao_familiar': '', 'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
     'rede_apoio': [], 'orientacoes_especialistas': '',
     'checklist_evidencias': {}, 
-    'barreiras_selecionadas': {'Cognitivo': [], 'Comunicacional': [], 'Socioemocional': [], 'Motora': [], 'Acadêmico': []},
+    'barreiras_selecionadas': {'Cognitivo': [], 'Comunicacional': [], 'Socioemocional': [], 'Sensorial/Motor': [], 'Acadêmico': []},
     'niveis_suporte': {}, 
     'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [], 'ia_sugestao': ''
 }
@@ -331,8 +308,8 @@ logo_path = finding_logo(); b64_logo = get_base64_image(logo_path); mime = "imag
 img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 80px;">' if logo_path else ""
 st.markdown(f"""<div class="header-clean">{img_html}<div><p style="margin:0; color:#004E92; font-size:1.3rem; font-weight:800;">Ecossistema de Inteligência Pedagógica e Inclusiva</p></div></div>""", unsafe_allow_html=True)
 
-abas = ["Início", "Estudante", "Coleta de Evidências", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
-tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
+abas = ["Início", "Estudante", "Coleta de Evidências", "Rede de Apoio", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
+tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(abas)
 
 # TAB 0: INÍCIO
 with tab0:
@@ -369,31 +346,32 @@ with tab1:
     st.markdown("##### 2. Saúde e Diagnóstico")
     st.session_state.dados['diagnostico'] = st.text_input("Diagnóstico Clínico (ou em investigação)", st.session_state.dados['diagnostico'], help="Se vazio, a IA tentará extrair do laudo anexo.")
     
-    # --- ÁREA DE MEDICAÇÃO DINÂMICA ---
     with st.container(border=True):
         st.markdown("**Controle de Medicação**")
-        
-        c_m1, c_m2, c_m3, c_m4 = st.columns([3, 2, 1, 1])
-        with c_m1: novo_med = st.text_input("Nome do Medicamento", key="temp_med_nome")
-        with c_m2: nova_pos = st.text_input("Posologia", key="temp_med_pos")
-        with c_m3: novo_esc = st.checkbox("Na Escola?", key="temp_med_esc")
-        with c_m4: 
+        c_med1, c_med2, c_med3 = st.columns([3, 2, 1])
+        with c_med1: novo_med = st.text_input("Nome do Medicamento", key="temp_med_nome")
+        with c_med2: nova_pos = st.text_input("Posologia", key="temp_med_pos")
+        with c_med3: 
             st.write("")
             st.write("")
             add_btn = st.button("➕ Adicionar")
 
         if add_btn and novo_med:
-            st.session_state.dados['lista_medicamentos'].append({"nome": novo_med, "posologia": nova_pos, "escola": novo_esc})
-            st.rerun() 
+            st.session_state.dados['lista_medicamentos'].append({"nome": novo_med, "posologia": nova_pos, "escola": False}) # Escola default false, editavel se quiser
+            st.rerun()
 
         if st.session_state.dados['lista_medicamentos']:
-            st.caption("Medicamentos Adicionados:")
+            st.caption("Medicamentos Adicionados (Marque se administrar na escola):")
             for idx, med in enumerate(st.session_state.dados['lista_medicamentos']):
-                status_escola = "🏫 (Administrar na escola)" if med['escola'] else ""
-                st.markdown(f"- **{med['nome']}**: {med['posologia']} {status_escola}")
-                if st.button(f"Remover", key=f"del_med_{idx}"):
-                    st.session_state.dados['lista_medicamentos'].pop(idx)
-                    st.rerun()
+                c_list1, c_list2, c_list3 = st.columns([4, 2, 1])
+                with c_list1: st.markdown(f"💊 **{med['nome']}** - {med['posologia']}")
+                with c_list2: 
+                    # Checkbox para atualizar estado
+                    med['escola'] = st.checkbox("Na Escola?", value=med['escola'], key=f"check_med_{idx}")
+                with c_list3: 
+                    if st.button("🗑️", key=f"del_med_{idx}"):
+                        st.session_state.dados['lista_medicamentos'].pop(idx)
+                        st.rerun()
 
     with st.expander("📎 Anexar Laudo (PDF)"):
         up = st.file_uploader("Arquivo PDF", type="pdf")
@@ -405,9 +383,9 @@ with tab2:
     st.info("O que você observa no dia a dia? Essas informações guiarão a IA para estratégias práticas.")
     
     questoes = {
-        "Desafios no Currículo e Aprendizagem": ["O aluno não avança mesmo com atividades adaptadas?", "Os objetivos parecem distantes da realidade dele?", "Dificuldade em generalizar o aprendizado?"],
-        "Atenção e Processamento da Informação": ["Se perde durante a atividade?", "Dificuldade de assimilar novos conceitos?", "Esquece rapidamente o que foi ensinado (memória)?"],
-        "Comportamento e Autonomia": ["Precisa de explicação constante (1:1)?", "Recusa atividades mesmo quando adaptadas?", "Baixa tolerância à frustração?"]
+        "Desafios no Currículo e Aprendizagem": ["O aluno não avança mesmo com atividades adaptadas?", "Os objetivos parecem distantes da realidade dele?", "Dificuldade em generalizar o aprendizado?", "Dificuldade com interpretação de texto?"],
+        "Atenção e Processamento da Informação": ["Se perde durante a atividade?", "Dificuldade de assimilar novos conceitos?", "Esquece rapidamente o que foi ensinado (memória)?", "Demora para iniciar ou finalizar tarefas?"],
+        "Comportamento e Autonomia": ["Precisa de explicação constante (1:1)?", "Recusa atividades mesmo quando adaptadas?", "Baixa tolerância à frustração?", "Dificuldade de organização dos materiais?"]
     }
     
     c_ev1, c_ev2, c_ev3 = st.columns(3)
@@ -426,32 +404,34 @@ with tab2:
         for q in questoes["Comportamento e Autonomia"]:
             st.session_state.dados['checklist_evidencias'][q] = st.checkbox(q, value=st.session_state.dados['checklist_evidencias'].get(q, False))
 
-# TAB 3: POTENCIALIDADES E BARREIRAS (REDE DE APOIO FOI MOVIDA PARA DENTRO DESTE CONTEXTO NA LÓGICA, MAS MANTEMOS A ABA SEPARADA SE QUISER, AQUI ESTÁ SEPARADA PARA CLAREZA)
-# Ops, o layout original tinha rede de apoio separada. Vou manter.
-pass 
+# TAB 3: REDE DE APOIO
+with tab3:
+    st.markdown("### <i class='ri-team-line'></i> Rede de Apoio", unsafe_allow_html=True)
+    st.session_state.dados['rede_apoio'] = st.multiselect("Profissionais:", ["Psicólogo", "Fonoaudiólogo", "TO", "Neuropediatra", "Psicopedagogo", "Professor Particular"], placeholder="Selecione...")
+    st.session_state.dados['orientacoes_especialistas'] = st.text_area("Orientações Técnicas (Resumo)", placeholder="Recomendações dos especialistas...", height=150)
 
 # TAB 4: POTENCIALIDADES E BARREIRAS
-with tab3: # Revertendo índice pois não mexi na ordem
-    st.markdown("### <i class='ri-map-pin-user-line'></i> Potencialidades & Barreiras", unsafe_allow_html=True)
+with tab4:
+    st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento Integral", unsafe_allow_html=True)
     
     with st.container(border=True):
         st.markdown("#### <i class='ri-lightbulb-flash-line' style='color:#004E92'></i> Potencialidades e Hiperfoco", unsafe_allow_html=True)
         c_pot1, c_pot2 = st.columns(2)
         st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco", placeholder="Ex: Minecraft, Dinossauros...")
-        st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", ["Memória Visual", "Lógica", "Criatividade", "Oralidade", "Artes"], placeholder="Selecione...")
+        potencias_opts = ["Memória Visual", "Raciocínio Lógico", "Criatividade", "Oralidade", "Artes", "Liderança", "Esportes/Motricidade", "Música", "Tecnologia", "Empatia/Social", "Observação de Detalhes"]
+        st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", potencias_opts, placeholder="Selecione...")
 
     st.divider()
     
     with st.container(border=True):
         st.markdown("#### <i class='ri-barricade-line' style='color:#FF6B6B'></i> Barreiras e Nível de Suporte", unsafe_allow_html=True)
         
-        glossario = {"Autorregulação": "Gerenciar emoções.", "Funções Executivas": "Planejamento e memória."}
         categorias = {
-            "Cognitivo": ["Atenção", "Memória", "Raciocínio Lógico"],
-            "Comunicacional": ["Expressão Verbal", "Compreensão"],
-            "Socioemocional": ["Interação Social", "Autorregulação", "Frustração"],
-            "Motora": ["Coordenação Fina", "Coordenação Ampla"],
-            "Acadêmico": ["Alfabetização", "Matemática"]
+            "Cognitivo": ["Atenção", "Memória de Trabalho", "Controle Inibitório", "Flexibilidade Cognitiva", "Planejamento", "Velocidade de Processamento", "Raciocínio Abstrato"],
+            "Comunicacional": ["Linguagem Receptiva", "Linguagem Expressiva", "Pragmática (Uso Social)", "Articulação", "Comunicação Alternativa"],
+            "Socioemocional": ["Regulação Emocional", "Tolerância à Frustração", "Interação Social", "Compreensão de Regras Sociais", "Rigidez de Pensamento"],
+            "Sensorial/Motor": ["Coordenação Fina", "Coordenação Ampla", "Hipersensibilidade Auditiva", "Hipersensibilidade Tátil", "Propriocepção", "Visual"],
+            "Acadêmico": ["Alfabetização (Leitura/Escrita)", "Interpretação de Texto", "Cálculo e Raciocínio Matemático", "Grafia/Legibilidade"]
         }
 
         cols = st.columns(3)
@@ -460,45 +440,48 @@ with tab3: # Revertendo índice pois não mexi na ordem
             with cols[idx % 3]:
                 with st.container():
                     st.markdown(f"**{cat_nome}**")
-                    selecionados = st.multiselect(f"Barreiras:", itens, key=f"multi_{cat_nome}", placeholder="Selecione...")
+                    selecionados = st.multiselect(f"Barreiras:", itens, key=f"multi_{cat_nome}", placeholder="Selecione...", help="Selecione apenas o que impacta a aprendizagem.")
                     st.session_state.dados['barreiras_selecionadas'][cat_nome] = selecionados
+                    
                     if selecionados:
+                        st.caption("Intensidade do apoio:")
                         for item in selecionados:
                             val = st.select_slider(f"{item}", ["Autônomo", "Monitorado", "Substancial", "Muito Substancial"], value="Monitorado", key=f"slider_{cat_nome}_{item}")
                             st.session_state.dados['niveis_suporte'][f"{cat_nome}_{item}"] = val
             idx += 1
 
 # TAB 5: PLANO DE AÇÃO
-with tab4:
+with tab5:
     st.markdown("### <i class='ri-tools-line'></i> Plano de Ação Estratégico", unsafe_allow_html=True)
+    
     col_a, col_b, col_c = st.columns(3)
     with col_a:
         with st.container(border=True):
             st.markdown("#### 1. Acesso (DUA)")
-            st.session_state.dados['estrategias_acesso'] = st.multiselect("Recursos:", ["Tempo Estendido", "Ledor/Escriba", "Material Ampliado", "Sala Silenciosa", "Tecnologia", "Pausas"], placeholder="Selecione...")
+            st.session_state.dados['estrategias_acesso'] = st.multiselect("Recursos:", ["Tempo Estendido", "Apoio à Leitura e Escrita", "Material Ampliado", "Sala Silenciosa", "Tecnologia", "Pausas", "Mobiliário Adaptado"], placeholder="Selecione...")
     with col_b:
         with st.container(border=True):
             st.markdown("#### 2. Ensino")
-            st.session_state.dados['estrategias_ensino'] = st.multiselect("Metodologia:", ["Fragmentação", "Pistas Visuais", "Mapas Mentais", "Projetos", "Ensino Híbrido"], placeholder="Selecione...")
+            st.session_state.dados['estrategias_ensino'] = st.multiselect("Metodologia:", ["Fragmentação de Tarefas", "Pistas Visuais", "Mapas Mentais", "Aprendizagem Baseada em Projetos", "Ensino Híbrido", "Modelagem", "Instrução Explícita"], placeholder="Selecione...")
     with col_c:
         with st.container(border=True):
             st.markdown("#### 3. Avaliação")
-            st.session_state.dados['estrategias_avaliacao'] = st.multiselect("Formato:", ["Prova Adaptada", "Consulta", "Oral", "Sem Distratores", "Portfólio"], placeholder="Selecione...")
+            st.session_state.dados['estrategias_avaliacao'] = st.multiselect("Formato:", ["Prova Adaptada (Conteúdo)", "Consulta Permitida", "Avaliação Oral", "Sem Distratores Visuais", "Portfólio", "Autoavaliação"], placeholder="Selecione...")
 
 # TAB 6: IA
-with tab5:
+with tab6:
     st.markdown("### <i class='ri-brain-line'></i> Consultoria Pedagógica", unsafe_allow_html=True)
     c1, c2 = st.columns([1, 2])
     with c1:
-        st.markdown("""<div style="background:#F0F4FF; padding:15px; border-radius:12px; border-left: 4px solid #004E92; color: #2D3748; font-size: 0.95rem;"><b>✏️ Área de Edição:</b><br>O texto abaixo é uma sugestão técnica. Você pode editar, complementar ou apagar qualquer parte antes de gerar o documento final.</div>""", unsafe_allow_html=True)
+        st.markdown("""<div style="background:#F0F4FF; padding:15px; border-radius:12px; border-left: 4px solid #004E92; color: #2D3748; font-size: 0.95rem;">Olá! Sou sua assistente de inteligência pedagógica. Estou pronta para cruzar os dados do estudante com a <b>BNCC</b> e a <b>Neurociência</b>.</div>""", unsafe_allow_html=True)
         st.write("")
         with st.expander("🔍 Ver detalhes do processamento"):
-            st.markdown("- **BNCC:** Identificação de habilidades essenciais e de recomposição.\n- **Diretrizes:** Sugestões baseadas no Hiperfoco.\n- **Legislação:** Validação com a LBI.")
+            st.markdown("- **Análise de Evidências:** Leitura dos checklists.\n- **Matriz de Suporte:** Cruzamento das barreiras com o nível de ajuda.\n- **Legislação:** Validação com a LBI.")
 
         if st.button("GERAR PLANO AGORA", type="primary"):
             if not st.session_state.dados['nome']: st.error("Preencha o Nome do aluno.")
             else:
-                with st.spinner("Construindo narrativa e diretrizes pedagógicas..."):
+                with st.spinner("Processando dados pedagógicos..."):
                     res, err = consultar_gpt_v4(api_key, st.session_state.dados, st.session_state.pdf_text)
                     if err: st.error(err)
                     else: st.session_state.dados['ia_sugestao'] = res; st.success("Plano Gerado!")
@@ -506,7 +489,7 @@ with tab5:
         if st.session_state.dados['ia_sugestao']: st.text_area("Texto do Relatório (Editável):", st.session_state.dados['ia_sugestao'], height=600)
 
 # TAB 7: DOCUMENTO
-with tab6:
+with tab7:
     st.markdown("### <i class='ri-file-pdf-line'></i> Exportação Oficial", unsafe_allow_html=True)
     if st.session_state.dados['ia_sugestao']:
         c1, c2 = st.columns(2)
@@ -517,7 +500,7 @@ with tab6:
         with c2:
             docx = gerar_docx(st.session_state.dados)
             st.download_button("📥 Baixar Word", docx, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    else: st.warning("Gere o plano na aba Consultoria IA primeiro.")
+    else: st.warning("Gere o plano na aba de Inteligência Artificial primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.8 | Narrative & Guidelines Edition</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.9 | Pedagogical Precision</div>", unsafe_allow_html=True)
