@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -80,7 +80,7 @@ st.markdown("""
         display: flex; align-items: center; gap: 30px;
     }
 
-    /* ABAS - Ajuste para caberem 8 itens */
+    /* ABAS */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; padding-bottom: 10px; flex-wrap: wrap; }
     .stTabs [data-baseweb="tab"] {
         height: 40px; border-radius: 20px; padding: 0 20px; background-color: white;
@@ -230,9 +230,9 @@ def gerar_docx(dados):
     if dados['ia_sugestao']: doc.add_heading('Parecer Técnico', level=1); doc.add_paragraph(dados['ia_sugestao'])
     buffer = BytesIO(); doc.save(buffer); buffer.seek(0); return buffer
 
-# --- 6. ESTADO E AUTO-REPARO (CRÍTICO PARA EVITAR KEYERROR) ---
+# --- 6. ESTADO E AUTO-REPARO ---
 default_state = {
-    'nome': '', 'nasc': None, 'serie': None, 'turma': '', 'diagnostico': '', 
+    'nome': '', 'nasc': date(2015, 1, 1), 'serie': None, 'turma': '', 'diagnostico': '', 
     'med_nome': '', 'med_posologia': '', 'med_horario': '', 'med_escola': False,
     'composicao_familiar': '', 'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
     'rede_apoio': [], 'orientacoes_especialistas': '',
@@ -242,13 +242,10 @@ default_state = {
     'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [], 'ia_sugestao': ''
 }
 
-if 'dados' not in st.session_state:
-    st.session_state.dados = default_state
+if 'dados' not in st.session_state: st.session_state.dados = default_state
 else:
-    # Garante que chaves novas existam na sessão antiga
     for key, val in default_state.items():
-        if key not in st.session_state.dados:
-            st.session_state.dados[key] = val
+        if key not in st.session_state.dados: st.session_state.dados[key] = val
 
 if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
 
@@ -260,16 +257,15 @@ with st.sidebar:
     else: api_key = st.text_input("Chave OpenAI:", type="password")
     st.markdown("---")
     data_atual = date.today().strftime("%d/%m/%Y")
-    st.markdown(f"<div style='font-size:0.75rem; color:#A0AEC0;'><b>PEI 360º</b><br>Criado por Rodrigo A. Queiroz<br>Atualizado: {data_atual}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:0.75rem; color:#A0AEC0;'><b>PEI 360º</b><br>Criado e desenvolvido por<br><b>Rodrigo Amorim Queiroz</b><br>Atualizado: {data_atual}</div>", unsafe_allow_html=True)
 
 # --- 8. LAYOUT ---
 logo_path = finding_logo(); b64_logo = get_base64_image(logo_path); mime = "image/png"
 img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 80px;">' if logo_path else ""
 st.markdown(f"""<div class="header-clean">{img_html}<div><p style="margin:0; color:#004E92; font-size:1.3rem; font-weight:800;">Ecossistema de Inteligência Pedagógica e Inclusiva</p></div></div>""", unsafe_allow_html=True)
 
-# DEFINIÇÃO CORRETA DAS 8 ABAS
-abas = ["Início", "Estudante", "Coleta de Evidências", "Rede de Apoio", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
-tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(abas)
+abas = ["Início", "Estudante", "Coleta de Evidências", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
+tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
 
 # TAB 0: INÍCIO
 with tab0:
@@ -287,8 +283,22 @@ with tab1:
     st.markdown("### <i class='ri-user-star-line'></i> Dossiê do Estudante", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
     st.session_state.dados['nome'] = c1.text_input("Nome Completo", st.session_state.dados['nome'])
-    st.session_state.dados['nasc'] = c2.date_input("Nascimento", st.session_state.dados['nasc'])
-    st.session_state.dados['serie'] = c3.selectbox("Série/Ano", ["Infantil", "1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano", "Fund. II", "Ensino Médio"])
+    
+    # Calendário Ajustado: Padrão 2015, Range 2000-2030
+    st.session_state.dados['nasc'] = c2.date_input("Nascimento", 
+        value=st.session_state.dados.get('nasc', date(2015, 1, 1)), 
+        min_value=date(2000, 1, 1), 
+        max_value=date.today()
+    )
+    
+    # Lista de Séries Corrigida
+    lista_series = [
+        "Educação Infantil",
+        "1º Ano (Anos Iniciais)", "2º Ano (Anos Iniciais)", "3º Ano (Anos Iniciais)", "4º Ano (Anos Iniciais)", "5º Ano (Anos Iniciais)",
+        "6º Ano (Anos Finais)", "7º Ano (Anos Finais)", "8º Ano (Anos Finais)", "9º Ano (Anos Finais)",
+        "1ª Série (Ensino Médio)", "2ª Série (Ensino Médio)", "3ª Série (Ensino Médio)"
+    ]
+    st.session_state.dados['serie'] = c3.selectbox("Série/Ano", lista_series, placeholder="Selecione...")
     st.session_state.dados['turma'] = c4.text_input("Turma", st.session_state.dados['turma'])
 
     st.markdown("---")
@@ -304,18 +314,12 @@ with tab1:
     st.markdown("##### 2. Saúde e Diagnóstico")
     st.session_state.dados['diagnostico'] = st.text_input("Diagnóstico Clínico (ou em investigação)", st.session_state.dados['diagnostico'])
     
-    # CONTAINER MEDICAÇÃO (Layout 2:2:1)
     with st.container(border=True):
         st.markdown("**Controle de Medicação**")
         c_med1, c_med2, c_med3 = st.columns([2, 2, 1])
-        with c_med1:
-            st.session_state.dados['med_nome'] = st.text_input("Nome do Medicamento", st.session_state.dados.get('med_nome', ''))
-        with c_med2:
-            st.session_state.dados['med_posologia'] = st.text_input("Posologia/Horário", st.session_state.dados.get('med_posologia', ''))
-        with c_med3:
-            st.write("") # Espaçamento
-            st.write("") 
-            st.session_state.dados['med_escola'] = st.checkbox("Admin. na Escola?", st.session_state.dados.get('med_escola', False))
+        st.session_state.dados['med_nome'] = c_med1.text_input("Nome do Medicamento", st.session_state.dados.get('med_nome', ''))
+        st.session_state.dados['med_posologia'] = c_med2.text_input("Posologia/Horário", st.session_state.dados.get('med_posologia', ''))
+        st.session_state.dados['med_escola'] = c_med3.checkbox("Administrar na Escola?", st.session_state.dados.get('med_escola', False))
 
     with st.expander("📎 Anexar Laudo (PDF)"):
         up = st.file_uploader("Arquivo PDF", type="pdf")
@@ -334,6 +338,8 @@ with tab2:
     
     c_ev1, c_ev2, c_ev3 = st.columns(3)
     
+    if 'checklist_evidencias' not in st.session_state.dados: st.session_state.dados['checklist_evidencias'] = {}
+
     with c_ev1:
         st.markdown("**Desafios no Currículo**")
         for q in questoes["Desafios no Currículo e Aprendizagem"]:
@@ -357,44 +363,50 @@ with tab3:
 with tab4:
     st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento Integral", unsafe_allow_html=True)
     
+    # Bloco 1: Potencialidades (Container)
     with st.container(border=True):
         st.markdown("#### <i class='ri-lightbulb-flash-line' style='color:#004E92'></i> Potencialidades e Hiperfoco", unsafe_allow_html=True)
         c_pot1, c_pot2 = st.columns(2)
         st.session_state.dados['hiperfoco'] = c_pot1.text_input("Hiperfoco", placeholder="Ex: Minecraft, Dinossauros...")
         st.session_state.dados['potencias'] = c_pot2.multiselect("Pontos Fortes", ["Memória Visual", "Lógica", "Criatividade", "Oralidade", "Artes"], placeholder="Selecione...")
 
-    st.markdown("#### Mapeamento de Barreiras e Nível de Suporte")
+    st.divider()
     
-    glossario = {
-        "Autorregulação": "Capacidade de gerenciar emoções e impulsos.",
-        "Funções Executivas": "Planejamento, memória de trabalho e controle inibitório.",
-        "Comunicação Alternativa": "Uso de pranchas, PECs ou tablets para falar."
-    }
+    # Bloco 2: Barreiras (Container - Simetria Visual Ajustada)
+    with st.container(border=True):
+        st.markdown("#### <i class='ri-barricade-line' style='color:#FF6B6B'></i> Barreiras e Nível de Suporte", unsafe_allow_html=True)
+        
+        glossario = {
+            "Autorregulação": "Capacidade de gerenciar emoções e impulsos.",
+            "Funções Executivas": "Planejamento, memória de trabalho e controle inibitório.",
+            "Comunicação Alternativa": "Uso de pranchas, PECs ou tablets para falar."
+        }
 
-    categorias = {
-        "Cognitivo": ["Atenção", "Memória", "Raciocínio Lógico", "Funções Executivas"],
-        "Comunicacional": ["Expressão Verbal", "Compreensão", "Comunicação Alternativa"],
-        "Socioemocional": ["Interação Social", "Autorregulação", "Tolerância à Frustração"],
-        "Motora": ["Coordenação Fina (Escrita)", "Coordenação Ampla (Locomoção)"],
-        "Acadêmico": ["Alfabetização", "Competência Matemática"]
-    }
+        categorias = {
+            "Cognitivo": ["Atenção", "Memória", "Raciocínio Lógico", "Funções Executivas"],
+            "Comunicacional": ["Expressão Verbal", "Compreensão", "Comunicação Alternativa"],
+            "Socioemocional": ["Interação Social", "Autorregulação", "Tolerância à Frustração"],
+            "Motora": ["Coordenação Fina (Escrita)", "Coordenação Ampla (Locomoção)"],
+            "Acadêmico": ["Alfabetização", "Competência Matemática"]
+        }
 
-    cols = st.columns(3)
-    idx = 0
-    for cat_nome, itens in categorias.items():
-        with cols[idx % 3]:
-            with st.container(border=True):
-                st.markdown(f"**{cat_nome}**")
-                selecionados = st.multiselect(f"Barreiras:", itens, key=f"multi_{cat_nome}", placeholder="Selecione...", help="Selecione apenas o que impacta a aprendizagem.")
-                st.session_state.dados['barreiras_selecionadas'][cat_nome] = selecionados
-                
-                if selecionados:
-                    st.caption("Intensidade do apoio:")
-                    for item in selecionados:
-                        help_text = glossario.get(item, "Defina a intensidade do apoio.")
-                        val = st.select_slider(f"{item}", ["Autônomo", "Monitorado", "Substancial", "Muito Substancial"], value="Monitorado", key=f"slider_{cat_nome}_{item}", help=help_text)
-                        st.session_state.dados['niveis_suporte'][f"{cat_nome}_{item}"] = val
-        idx += 1
+        cols = st.columns(3)
+        idx = 0
+        for cat_nome, itens in categorias.items():
+            with cols[idx % 3]:
+                # Sub-containers para organização
+                with st.container():
+                    st.markdown(f"**{cat_nome}**")
+                    selecionados = st.multiselect(f"Barreiras:", itens, key=f"multi_{cat_nome}", placeholder="Selecione...", help="Selecione apenas o que impacta a aprendizagem.")
+                    st.session_state.dados['barreiras_selecionadas'][cat_nome] = selecionados
+                    
+                    if selecionados:
+                        st.caption("Intensidade do apoio:")
+                        for item in selecionados:
+                            help_text = glossario.get(item, "Defina a intensidade do apoio.")
+                            val = st.select_slider(f"{item}", ["Autônomo", "Monitorado", "Substancial", "Muito Substancial"], value="Monitorado", key=f"slider_{cat_nome}_{item}", help=help_text)
+                            st.session_state.dados['niveis_suporte'][f"{cat_nome}_{item}"] = val
+            idx += 1
 
 # TAB 5: PLANO DE AÇÃO
 with tab5:
@@ -449,4 +461,4 @@ with tab7:
     else: st.warning("Gere o plano na aba Consultoria IA primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.3 | Final Version</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.5 | Golden Edition</div>", unsafe_allow_html=True)
