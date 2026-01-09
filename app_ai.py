@@ -47,9 +47,12 @@ def ler_pdf(arquivo):
 
 def limpar_texto_pdf(texto):
     if not texto: return ""
+    # Limpeza profunda de caracteres que quebram o FPDF
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
-    texto = texto.replace('* ', '• ')
+    texto = texto.replace('* ', '-') # Bullet point simples
+    texto = texto.replace('–', '-').replace('—', '-')
+    texto = texto.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
     return texto
 
@@ -97,7 +100,6 @@ st.markdown("""
     div[data-testid="column"] .stButton button {
         border-radius: 12px !important; font-weight: 800 !important; text-transform: uppercase; height: 50px !important; letter-spacing: 0.5px;
     }
-    /* Ícones */
     .icon-box {
         width: 48px; height: 48px; background: #EBF8FF; border-radius: 12px;
         display: flex; align-items: center; justify-content: center; margin-bottom: 15px;
@@ -106,7 +108,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. IA (PROMPT COM FORMATACAO ESTRUTURADA) ---
+# --- 4. IA (PROMPT PEDAGÓGICO) ---
 def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
@@ -114,7 +116,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         client = OpenAI(api_key=api_key)
         contexto_seguro = contexto_pdf[:5000] if contexto_pdf else "Sem laudo anexado."
         
-        # Limpa interrogações das evidências para a IA ler como afirmações
+        # Limpa interrogações das evidências para evitar confusão visual
         evidencias_texto = "\n".join([f"- {k.replace('?', '')}" for k, v in dados['checklist_evidencias'].items() if v])
         
         meds_texto = ""
@@ -138,17 +140,17 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         Sua missão é construir um PEI (Plano de Ensino Individualizado) centrado no estudante.
         
         ESTRUTURA OBRIGATÓRIA PARA FORMATAÇÃO DO PDF:
-        Para garantir que o documento final fique bem formatado, use EXATAMENTE a numeração abaixo para os títulos principais.
+        Para garantir que o documento final fique bem formatado, use EXATAMENTE a numeração abaixo e escreva os TÍTULOS EM CAIXA ALTA.
+        
         1. PERFIL BIOPSICOSSOCIAL DO ESTUDANTE
         2. PLANEJAMENTO CURRICULAR E BNCC
         3. DIRETRIZES PRÁTICAS PARA ADAPTAÇÃO
         4. PLANO DE INTERVENÇÃO E ESTRATÉGIAS
         5. PARECER FINAL E RECOMENDAÇÕES
         
-        DIRETRIZES DE CONTEÚDO:
-        - Comece o ponto 1 narrando a história do aluno (Histórico, Família) antes de entrar nos aspectos clínicos.
-        - No ponto 2, cite Habilidades Essenciais do ano atual E Habilidades de Recomposição de anos anteriores.
-        - No ponto 3, DÊ EXEMPLOS PRÁTICOS de como usar o Hiperfoco para adaptar atividades.
+        DIRETRIZES:
+        - O texto deve ser fluido e técnico.
+        - Não use símbolos complexos que possam quebrar a formatação.
         """
 
         prompt_usuario = f"""
@@ -171,7 +173,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         
         LAUDO: {contexto_seguro}
         
-        GERE O RELATÓRIO TÉCNICO SEGUINDO A NUMERAÇÃO 1 A 5 ESTRITAMENTE.
+        GERE O RELATÓRIO TÉCNICO SEGUINDO A ESTRUTURA NUMERADA (1. a 5.).
         """
         
         response = client.chat.completions.create(
@@ -182,21 +184,25 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         return response.choices[0].message.content, None
     except Exception as e: return None, f"Erro OpenAI: {str(e)}."
 
-# --- 5. PDF (FORMATADOR INTELIGENTE) ---
+# --- 5. PDF (LÓGICA AJUSTADA E LOGO AMPLIADA) ---
 class PDF_V3(FPDF):
     def header(self):
         self.set_draw_color(0, 78, 146); self.set_line_width(0.4)
         self.rect(5, 5, 200, 287)
+        
         logo = finding_logo()
+        # LOGO AUMENTADA PARA 30 DE LARGURA PARA FICAR PROPORCIONAL
         if logo: 
-            self.image(logo, 12, 12, 22)
-            x_offset = 40
+            self.image(logo, 10, 10, 30) # Aumentado de 22 para 30
+            x_offset = 45 # Ajustado offset do texto
         else: 
             x_offset = 12
+        
         self.set_xy(x_offset, 16) 
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 78, 146)
         self.cell(0, 8, 'PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'L')
+        
         self.set_xy(x_offset, 23)
         self.set_font('Arial', 'I', 10)
         self.set_text_color(100)
@@ -234,29 +240,31 @@ def gerar_pdf(dados, tem_anexo):
     pdf.ln(2)
     pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Família:", 0, 0); pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 6, dados['composicao_familiar'])
 
-    # 2. Evidências (Sem interrogações)
+    # 2. Evidências (Limpa ?)
     evidencias = [k.replace('?', '') for k, v in dados['checklist_evidencias'].items() if v]
     if evidencias:
         pdf.section_title("2. PONTOS DE ATENÇÃO (EVIDÊNCIAS OBSERVADAS)")
         pdf.set_font("Arial", size=10)
         pdf.multi_cell(0, 6, limpar_texto_pdf('; '.join(evidencias) + '.'))
 
-    # 3. Relatório IA (Formatador de Títulos)
+    # 3. Relatório IA (Lógica Anti-Erro de Formatação)
     if dados['ia_sugestao']:
         pdf.ln(5)
-        # Processa o texto linha por linha para achar títulos e negritar
         linhas = dados['ia_sugestao'].split('\n')
         for linha in linhas:
             linha_limpa = limpar_texto_pdf(linha)
-            # Verifica se é um título numérico (1., 2., 3., 4., 5.)
-            if re.match(r'^[1-5]\.', linha_limpa.strip()):
+            # REGRA RIGOROSA: Só é título se começar com número E for CAIXA ALTA (ex: 1. PERFIL...)
+            # Isso impede que "1. O aluno..." vire título azul.
+            is_titulo = re.match(r'^[1-5]\.', linha_limpa.strip()) and linha_limpa.strip().isupper()
+            
+            if is_titulo:
                 pdf.ln(4)
                 pdf.set_fill_color(240, 248, 255)
                 pdf.set_text_color(0, 78, 146)
                 pdf.set_font('Arial', 'B', 11)
                 pdf.cell(0, 8, f"  {linha_limpa}", 0, 1, 'L', fill=True)
-                pdf.set_text_color(0) # Volta pra preto
-                pdf.set_font("Arial", size=10)
+                pdf.set_text_color(0) # Reset cor
+                pdf.set_font("Arial", size=10) # Reset fonte
             else:
                 pdf.multi_cell(0, 6, linha_limpa)
         
@@ -281,7 +289,7 @@ default_state = {
     'composicao_familiar': '', 'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
     'rede_apoio': [], 'orientacoes_especialistas': '',
     'checklist_evidencias': {}, 
-    'barreiras_selecionadas': {'Cognitivo': [], 'Comunicacional': [], 'Socioemocional': [], 'Sensorial/Motor': [], 'Acadêmico': []},
+    'barreiras_selecionadas': {'Cognitivo': [], 'Comunicacional': [], 'Socioemocional': [], 'Motora': [], 'Acadêmico': []},
     'niveis_suporte': {}, 
     'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [], 'ia_sugestao': ''
 }
@@ -357,7 +365,7 @@ with tab1:
             add_btn = st.button("➕ Adicionar")
 
         if add_btn and novo_med:
-            st.session_state.dados['lista_medicamentos'].append({"nome": novo_med, "posologia": nova_pos, "escola": False}) # Escola default false, editavel se quiser
+            st.session_state.dados['lista_medicamentos'].append({"nome": novo_med, "posologia": nova_pos, "escola": False})
             st.rerun()
 
         if st.session_state.dados['lista_medicamentos']:
@@ -366,7 +374,6 @@ with tab1:
                 c_list1, c_list2, c_list3 = st.columns([4, 2, 1])
                 with c_list1: st.markdown(f"💊 **{med['nome']}** - {med['posologia']}")
                 with c_list2: 
-                    # Checkbox para atualizar estado
                     med['escola'] = st.checkbox("Na Escola?", value=med['escola'], key=f"check_med_{idx}")
                 with c_list3: 
                     if st.button("🗑️", key=f"del_med_{idx}"):
@@ -500,7 +507,7 @@ with tab7:
         with c2:
             docx = gerar_docx(st.session_state.dados)
             st.download_button("📥 Baixar Word", docx, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    else: st.warning("Gere o plano na aba de Inteligência Artificial primeiro.")
+    else: st.warning("Gere o plano na aba Consultoria IA primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.9 | Pedagogical Precision</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v5.0 | Final Refined Edition</div>", unsafe_allow_html=True)
