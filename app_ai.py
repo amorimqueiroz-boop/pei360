@@ -67,7 +67,7 @@ st.markdown("""
 
     .unified-card {
         background-color: white; padding: 25px; border-radius: var(--card-radius);
-        border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.03); margin-bottom: 20px; height: 100%;
+        border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.03); margin-bottom: 20px;
     }
     
     .interactive-card:hover {
@@ -80,7 +80,6 @@ st.markdown("""
         display: flex; align-items: center; gap: 30px;
     }
 
-    /* ABAS */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; padding-bottom: 10px; flex-wrap: wrap; }
     .stTabs [data-baseweb="tab"] {
         height: 40px; border-radius: 20px; padding: 0 20px; background-color: white;
@@ -108,7 +107,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. IA (PROMPT PEDAGÓGICO) ---
+# --- 4. IA (PROMPT COM DIRETRIZES DE ADAPTAÇÃO) ---
 def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
@@ -118,6 +117,14 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         
         evidencias_texto = "\n".join([f"- {k}" for k, v in dados['checklist_evidencias'].items() if v])
         
+        # Formata lista de medicações para a IA
+        meds_texto = ""
+        if dados['lista_medicamentos']:
+            for m in dados['lista_medicamentos']:
+                meds_texto += f"- {m['nome']} ({m['posologia']}). Admin na escola: {'SIM' if m['escola'] else 'NÃO'}.\n"
+        else:
+            meds_texto = "Nenhuma medicação informada."
+
         mapeamento_texto = ""
         for categoria, itens in dados['barreiras_selecionadas'].items():
             if itens:
@@ -129,24 +136,27 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
                 mapeamento_texto += ", ".join(detalhes)
 
         prompt_sistema = """
-        Você é um Especialista em Educação Inclusiva e Neurociência.
-        Sua missão é construir um PEI (Plano de Ensino Individualizado) tecnicamente robusto.
+        Você é um Neuropsicopedagogo Sênior.
+        Sua missão é construir um PEI (Plano de Ensino Individualizado) centrado no estudante.
         
-        DIRETRIZES:
-        1. LEGISLAÇÃO: O plano deve garantir o direito de acesso ao currículo (Decreto 12.686).
-        2. NEUROCIÊNCIA: Use o 'Hiperfoco' e 'Potencialidades' para mitigar as 'Barreiras'.
-        3. EVIDÊNCIAS: Dê uma solução prática para cada item marcado no checklist.
-        4. BNCC: Cite a habilidade que será trabalhada e como será adaptada.
+        ESTRUTURA OBRIGATÓRIA:
+        1. COMECE PELO SUJEITO: A introdução deve narrar quem é o aluno (histórico, família) antes de falar do diagnóstico.
+        2. DIRETRIZES DE ADAPTAÇÃO (Novo): Crie uma seção específica com exemplos práticos de como adaptar provas e atividades baseando-se no HIPERFOCO dele.
+        3. CLAREZA: Use negrito para destacar pontos chave. Espaçamento agradável.
         """
 
         prompt_usuario = f"""
         ESTUDANTE: {dados['nome']} | Série: {dados['serie']} | Turma: {dados['turma']}
         DIAGNÓSTICO: {dados['diagnostico']}
-        MEDICAÇÃO: {dados['med_nome']} ({dados['med_posologia']}). Admin na escola: {'SIM' if dados['med_escola'] else 'Não'}.
         
-        CONTEXTO: {dados['historico']} | {dados['familia']}
+        MEDICAÇÕES EM USO:
+        {meds_texto}
         
-        EVIDÊNCIAS (Sintomas): {evidencias_texto}
+        QUEM É O ESTUDANTE (Histórico e Família):
+        {dados['historico']}
+        {dados['familia']}
+        
+        EVIDÊNCIAS DE SALA: {evidencias_texto}
         
         BARREIRAS E NÍVEIS: {mapeamento_texto}
         
@@ -160,10 +170,10 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         LAUDO: {contexto_seguro}
         
         GERE O RELATÓRIO TÉCNICO:
-        1. ANÁLISE DO DESENVOLVIMENTO: Integre histórico, diagnóstico e evidências.
-        2. PLANEJAMENTO PEDAGÓGICO (BNCC): Cite 1 objetivo central flexibilizado.
-        3. PLANO DE INTERVENÇÃO: Detalhe o uso das estratégias.
-        4. ORIENTAÇÕES DE ROTINA E MEDICAÇÃO.
+        1. QUEM É O ESTUDANTE (Perfil Biopsicossocial): Comece humanizando, depois cite diagnóstico e medicação.
+        2. ANÁLISE PEDAGÓGICA (BNCC): Cite 1 habilidade essencial e como ela será trabalhada.
+        3. DIRETRIZES PRÁTICAS PARA ADAPTAÇÃO: (Crucial) Dê 3 exemplos de como adaptar uma atividade usando o Hiperfoco {dados['hiperfoco']}.
+        4. PLANO DE INTERVENÇÃO: Detalhe o uso das estratégias.
         5. PARECER FINAL.
         """
         
@@ -175,24 +185,42 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         return response.choices[0].message.content, None
     except Exception as e: return None, f"Erro OpenAI: {str(e)}."
 
-# --- 5. PDF ---
+# --- 5. PDF (LAYOUT MELHORADO) ---
 class PDF_V3(FPDF):
     def header(self):
         self.set_draw_color(0, 78, 146); self.set_line_width(0.4)
         self.rect(5, 5, 200, 287)
+        
         logo = finding_logo()
-        if logo: self.image(logo, 12, 12, 22); x_offset = 40
-        else: x_offset = 12
-        self.set_xy(x_offset, 15); self.set_font('Arial', 'B', 14); self.set_text_color(0, 78, 146)
+        # Ajuste fino de posicionamento do logo e título
+        if logo: 
+            self.image(logo, 12, 12, 22)
+            x_offset = 40
+        else: 
+            x_offset = 12
+        
+        self.set_xy(x_offset, 16) # Alinhamento vertical visual
+        self.set_font('Arial', 'B', 16) # Fonte maior para o título
+        self.set_text_color(0, 78, 146)
         self.cell(0, 8, 'PLANO DE ENSINO INDIVIDUALIZADO', 0, 1, 'L')
-        self.set_xy(x_offset, 22); self.set_font('Arial', 'I', 9); self.set_text_color(100)
-        self.cell(0, 5, 'Documento Oficial de Planejamento Pedagógico', 0, 1, 'L'); self.ln(15)
+        
+        self.set_xy(x_offset, 23)
+        self.set_font('Arial', 'I', 10)
+        self.set_text_color(100)
+        self.cell(0, 5, 'Documento Oficial de Planejamento Pedagógico', 0, 1, 'L')
+        self.ln(20) # Mais espaço após o cabeçalho
+
     def footer(self):
         self.set_y(-15); self.set_font('Arial', 'I', 8); self.set_text_color(128)
         self.cell(0, 10, f'Gerado via PEI 360º | Página {self.page_no()}', 0, 0, 'C')
+
     def section_title(self, label):
-        self.ln(5); self.set_fill_color(240, 248, 255); self.set_text_color(0, 78, 146)
-        self.set_font('Arial', 'B', 11); self.cell(0, 8, f"  {label}", 0, 1, 'L', fill=True); self.ln(3)
+        self.ln(8) # Mais respiro antes do título
+        self.set_fill_color(240, 248, 255)
+        self.set_text_color(0, 78, 146)
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 8, f"  {label}", 0, 1, 'L', fill=True)
+        self.ln(4) # Respiro após o título
 
 def gerar_pdf(dados, tem_anexo):
     pdf = PDF_V3(); pdf.add_page(); pdf.set_auto_page_break(auto=True, margin=20)
@@ -200,24 +228,50 @@ def gerar_pdf(dados, tem_anexo):
     # 1. Identificação
     pdf.section_title("1. IDENTIFICAÇÃO E CONTEXTO")
     pdf.set_font("Arial", size=10); pdf.set_text_color(0)
+    
+    # Montagem da string de medicação (Lista)
+    med_str = ""
+    if dados['lista_medicamentos']:
+        med_list = []
+        for m in dados['lista_medicamentos']:
+            admin = " (Admin. Escola)" if m['escola'] else ""
+            med_list.append(f"{m['nome']} - {m['posologia']}{admin}")
+        med_str = "; ".join(med_list)
+    else:
+        med_str = "Não informado / Não faz uso."
+
     diag = dados['diagnostico'] if dados['diagnostico'] else ("Vide Laudo Anexo" if tem_anexo else "Não informado")
-    med_info = dados['med_nome'] if dados['med_nome'] else "Não informado"
     
-    txt = (f"Nome: {dados['nome']}\nNascimento: {str(dados['nasc'])}\nSérie: {dados['serie']} | Turma: {dados['turma']}\n"
-           f"Diagnóstico: {diag}\nMedicação: {med_info}\nComposição Familiar: {dados['composicao_familiar']}")
-    pdf.multi_cell(0, 6, limpar_texto_pdf(txt))
+    # Texto formatado com negritos simulados (FPDF padrão não suporta markdown direto, então estruturamos bloco a bloco ou texto corrido limpo)
+    # Para simplicidade e robustez, usamos texto limpo e bem espaçado.
     
+    pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Nome:", 0, 0); pdf.set_font("Arial", '', 10); pdf.cell(0, 6, dados['nome'], 0, 1)
+    pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Nascimento:", 0, 0); pdf.set_font("Arial", '', 10); pdf.cell(0, 6, str(dados['nasc']), 0, 1)
+    pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Série/Turma:", 0, 0); pdf.set_font("Arial", '', 10); pdf.cell(0, 6, f"{dados['serie']} - {dados['turma']}", 0, 1)
+    pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Diagnóstico:", 0, 0); pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 6, diag)
+    pdf.ln(2)
+    pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Medicação:", 0, 0); pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 6, med_str)
+    pdf.ln(2)
+    pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Família:", 0, 0); pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 6, dados['composicao_familiar'])
+
     # 2. Evidências
     evidencias = [k for k, v in dados['checklist_evidencias'].items() if v]
     if evidencias:
-        pdf.ln(3); pdf.set_font("Arial", 'B', 10); pdf.cell(0, 6, "Evidências Observadas:", 0, 1); pdf.set_font("Arial", size=10)
+        pdf.section_title("2. PONTOS DE ATENÇÃO (EVIDÊNCIAS OBSERVADAS)")
+        pdf.set_font("Arial", size=10)
         pdf.multi_cell(0, 6, limpar_texto_pdf('; '.join(evidencias)))
 
-    # 3. Relatório IA
+    # 3. Relatório IA (Onde entra a Diretriz)
     if dados['ia_sugestao']:
-        pdf.ln(5); txt_ia = limpar_texto_pdf(dados['ia_sugestao']); pdf.multi_cell(0, 6, txt_ia)
+        pdf.ln(5)
+        # O título já vem no texto da IA ou podemos forçar se a IA não puser
+        # pdf.section_title("3. PARECER TÉCNICO E DIRETRIZES") 
+        txt_ia = limpar_texto_pdf(dados['ia_sugestao'])
+        pdf.multi_cell(0, 6, txt_ia)
         
-    pdf.ln(20); y = pdf.get_y()
+    # Assinaturas
+    pdf.ln(25)
+    y = pdf.get_y()
     if y > 250: pdf.add_page(); y = 40
     pdf.line(20, y, 90, y); pdf.line(120, y, 190, y)
     pdf.set_font("Arial", 'I', 8); pdf.text(35, y+5, "Coordenação / Direção"); pdf.text(135, y+5, "Família / Responsável")
@@ -230,11 +284,10 @@ def gerar_docx(dados):
     if dados['ia_sugestao']: doc.add_heading('Parecer Técnico', level=1); doc.add_paragraph(dados['ia_sugestao'])
     buffer = BytesIO(); doc.save(buffer); buffer.seek(0); return buffer
 
-# --- 6. ESTADO E AUTO-REPARO (CORREÇÃO DE KEYERROR) ---
-# Define todas as chaves que o sistema precisa para rodar
+# --- 6. ESTADO E AUTO-REPARO ---
 default_state = {
     'nome': '', 'nasc': date(2015, 1, 1), 'serie': None, 'turma': '', 'diagnostico': '', 
-    'med_nome': '', 'med_posologia': '', 'med_horario': '', 'med_escola': False,
+    'lista_medicamentos': [], # LISTA PARA MULTIPLOS REMEDIOS
     'composicao_familiar': '', 'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
     'rede_apoio': [], 'orientacoes_especialistas': '',
     'checklist_evidencias': {}, 
@@ -243,14 +296,10 @@ default_state = {
     'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [], 'ia_sugestao': ''
 }
 
-# Inicializa ou Repara o Estado da Sessão
-if 'dados' not in st.session_state:
-    st.session_state.dados = default_state
+if 'dados' not in st.session_state: st.session_state.dados = default_state
 else:
-    # Auto-Reparo: Se faltar alguma chave nova (ex: composicao_familiar), adiciona ela
     for key, val in default_state.items():
-        if key not in st.session_state.dados:
-            st.session_state.dados[key] = val
+        if key not in st.session_state.dados: st.session_state.dados[key] = val
 
 if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
 
@@ -269,7 +318,6 @@ logo_path = finding_logo(); b64_logo = get_base64_image(logo_path); mime = "imag
 img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 80px;">' if logo_path else ""
 st.markdown(f"""<div class="header-clean">{img_html}<div><p style="margin:0; color:#004E92; font-size:1.3rem; font-weight:800;">Ecossistema de Inteligência Pedagógica e Inclusiva</p></div></div>""", unsafe_allow_html=True)
 
-# DEFINIÇÃO CORRETA DAS 8 ABAS (Corrigindo NameError)
 abas = ["Início", "Estudante", "Coleta de Evidências", "Rede de Apoio", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
 tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(abas)
 
@@ -303,18 +351,40 @@ with tab1:
     with ch2:
         st.session_state.dados['familia'] = st.text_area("Contexto Familiar", st.session_state.dados['familia'], height=100, help="Rotina, cuidadores e expectativas.")
     
-    # Campo com auto-reparo
     st.session_state.dados['composicao_familiar'] = st.text_input("Composição Familiar", st.session_state.dados.get('composicao_familiar', ''), placeholder="Quem mora com a criança?")
 
     st.markdown("##### 2. Saúde e Diagnóstico")
     st.session_state.dados['diagnostico'] = st.text_input("Diagnóstico Clínico (ou em investigação)", st.session_state.dados['diagnostico'])
     
+    # --- ÁREA DE MEDICAÇÃO DINÂMICA ---
     with st.container(border=True):
         st.markdown("**Controle de Medicação**")
-        c_med1, c_med2, c_med3 = st.columns([2, 2, 1])
-        st.session_state.dados['med_nome'] = c_med1.text_input("Nome do Medicamento", st.session_state.dados.get('med_nome', ''))
-        st.session_state.dados['med_posologia'] = c_med2.text_input("Posologia/Horário", st.session_state.dados.get('med_posologia', ''))
-        st.session_state.dados['med_escola'] = c_med3.checkbox("Administrar na Escola?", st.session_state.dados.get('med_escola', False))
+        
+        # Inputs temporários
+        c_m1, c_m2, c_m3, c_m4 = st.columns([3, 2, 1, 1])
+        with c_m1: novo_med = st.text_input("Nome do Medicamento", key="temp_med_nome")
+        with c_m2: nova_pos = st.text_input("Posologia", key="temp_med_pos")
+        with c_m3: novo_esc = st.checkbox("Na Escola?", key="temp_med_esc")
+        with c_m4: 
+            st.write("")
+            st.write("")
+            add_btn = st.button("➕ Adicionar")
+
+        if add_btn and novo_med:
+            st.session_state.dados['lista_medicamentos'].append({
+                "nome": novo_med, "posologia": nova_pos, "escola": novo_esc
+            })
+            st.rerun() # Atualiza a tela para mostrar a lista
+
+        # Mostra a lista adicionada
+        if st.session_state.dados['lista_medicamentos']:
+            st.caption("Medicamentos Adicionados:")
+            for idx, med in enumerate(st.session_state.dados['lista_medicamentos']):
+                status_escola = "🏫 (Administrar na escola)" if med['escola'] else ""
+                st.markdown(f"- **{med['nome']}**: {med['posologia']} {status_escola}")
+                if st.button(f"Remover {idx}", key=f"del_med_{idx}"):
+                    st.session_state.dados['lista_medicamentos'].pop(idx)
+                    st.rerun()
 
     with st.expander("📎 Anexar Laudo (PDF)"):
         up = st.file_uploader("Arquivo PDF", type="pdf")
@@ -332,7 +402,6 @@ with tab2:
     }
     
     c_ev1, c_ev2, c_ev3 = st.columns(3)
-    
     if 'checklist_evidencias' not in st.session_state.dados: st.session_state.dados['checklist_evidencias'] = {}
 
     with c_ev1:
@@ -421,22 +490,42 @@ with tab5:
 # TAB 6: IA
 with tab6:
     st.markdown("### <i class='ri-brain-line'></i> Consultoria Pedagógica", unsafe_allow_html=True)
-    c1, c2 = st.columns([1, 2])
-    with c1:
-        st.markdown("""<div style="background:#F0F4FF; padding:15px; border-radius:12px; border-left: 4px solid #004E92; color: #2D3748; font-size: 0.95rem;">Olá! Sou sua assistente de inteligência pedagógica. Estou pronta para cruzar os dados do estudante com a <b>BNCC</b> e a <b>Neurociência</b>.</div>""", unsafe_allow_html=True)
-        st.write("")
-        with st.expander("🔍 Ver detalhes do processamento"):
-            st.markdown("- **Análise de Evidências:** Leitura dos checklists.\n- **Matriz de Suporte:** Cruzamento das barreiras com o nível de ajuda.\n- **Legislação:** Validação com a LBI.")
+    
+    # Layout "Editor Visual"
+    st.markdown("""
+    <div style="background-color: #F7FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 20px;">
+        <h4 style="color: #004E92; margin-top: 0;">✏️ Editor de Plano de Ensino</h4>
+        <p style="font-size: 0.9rem; color: #4A5568;">
+            Abaixo, a IA gerou um <b>rascunho avançado</b> baseado nos dados inseridos. 
+            Você pode (e deve) editar, complementar ou excluir partes diretamente no texto antes de baixar o arquivo final.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-        if st.button("GERAR PLANO AGORA", type="primary"):
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        if st.button("✨ GERAR / ATUALIZAR PLANO", type="primary"):
             if not st.session_state.dados['nome']: st.error("Preencha o Nome do aluno.")
             else:
                 with st.spinner("Processando dados pedagógicos..."):
                     res, err = consultar_gpt_v4(api_key, st.session_state.dados, st.session_state.pdf_text)
                     if err: st.error(err)
-                    else: st.session_state.dados['ia_sugestao'] = res; st.success("Plano Gerado!")
+                    else: st.session_state.dados['ia_sugestao'] = res; st.success("Sucesso!")
+        
+        st.write("")
+        with st.expander("🔍 Detalhes do Processamento"):
+            st.markdown("""
+            **Racional da IA:**
+            1. **Histórico:** Prioriza a trajetória do aluno.
+            2. **BNCC:** Busca habilidade compatível com a série.
+            3. **Adaptação:** Aplica a diretriz de Hiperfoco.
+            """)
+
     with c2:
-        if st.session_state.dados['ia_sugestao']: st.text_area("Parecer Técnico:", st.session_state.dados['ia_sugestao'], height=550)
+        if st.session_state.dados['ia_sugestao']:
+            st.text_area("Texto do Relatório (Edite aqui):", st.session_state.dados['ia_sugestao'], height=600)
+        else:
+            st.markdown("<div style='padding:50px; text-align:center; color:#CBD5E0; border:2px dashed #E2E8F0; border-radius:12px;'>O plano aparecerá aqui para edição.</div>", unsafe_allow_html=True)
 
 # TAB 7: DOCUMENTO
 with tab7:
@@ -450,7 +539,7 @@ with tab7:
         with c2:
             docx = gerar_docx(st.session_state.dados)
             st.download_button("📥 Baixar Word", docx, f"PEI_{st.session_state.dados['nome']}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    else: st.warning("Gere o plano na aba Consultoria IA primeiro.")
+    else: st.warning("Gere o plano na aba de Inteligência Artificial primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.6 | Auto-Reparo Edition</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.7 | Dynamic & Guidelines Edition</div>", unsafe_allow_html=True)
