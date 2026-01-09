@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date, datetime
+from datetime import date
 from io import BytesIO
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -67,7 +67,7 @@ st.markdown("""
 
     .unified-card {
         background-color: white; padding: 25px; border-radius: var(--card-radius);
-        border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.03); margin-bottom: 20px;
+        border: 1px solid #EDF2F7; box-shadow: 0 4px 6px rgba(0,0,0,0.03); margin-bottom: 20px; height: 100%;
     }
     
     .interactive-card:hover {
@@ -230,7 +230,8 @@ def gerar_docx(dados):
     if dados['ia_sugestao']: doc.add_heading('Parecer Técnico', level=1); doc.add_paragraph(dados['ia_sugestao'])
     buffer = BytesIO(); doc.save(buffer); buffer.seek(0); return buffer
 
-# --- 6. ESTADO E AUTO-REPARO ---
+# --- 6. ESTADO E AUTO-REPARO (CORREÇÃO DE KEYERROR) ---
+# Define todas as chaves que o sistema precisa para rodar
 default_state = {
     'nome': '', 'nasc': date(2015, 1, 1), 'serie': None, 'turma': '', 'diagnostico': '', 
     'med_nome': '', 'med_posologia': '', 'med_horario': '', 'med_escola': False,
@@ -242,10 +243,14 @@ default_state = {
     'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [], 'ia_sugestao': ''
 }
 
-if 'dados' not in st.session_state: st.session_state.dados = default_state
+# Inicializa ou Repara o Estado da Sessão
+if 'dados' not in st.session_state:
+    st.session_state.dados = default_state
 else:
+    # Auto-Reparo: Se faltar alguma chave nova (ex: composicao_familiar), adiciona ela
     for key, val in default_state.items():
-        if key not in st.session_state.dados: st.session_state.dados[key] = val
+        if key not in st.session_state.dados:
+            st.session_state.dados[key] = val
 
 if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
 
@@ -264,8 +269,9 @@ logo_path = finding_logo(); b64_logo = get_base64_image(logo_path); mime = "imag
 img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 80px;">' if logo_path else ""
 st.markdown(f"""<div class="header-clean">{img_html}<div><p style="margin:0; color:#004E92; font-size:1.3rem; font-weight:800;">Ecossistema de Inteligência Pedagógica e Inclusiva</p></div></div>""", unsafe_allow_html=True)
 
-abas = ["Início", "Estudante", "Coleta de Evidências", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
-tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(abas)
+# DEFINIÇÃO CORRETA DAS 8 ABAS (Corrigindo NameError)
+abas = ["Início", "Estudante", "Coleta de Evidências", "Rede de Apoio", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
+tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(abas)
 
 # TAB 0: INÍCIO
 with tab0:
@@ -283,21 +289,9 @@ with tab1:
     st.markdown("### <i class='ri-user-star-line'></i> Dossiê do Estudante", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
     st.session_state.dados['nome'] = c1.text_input("Nome Completo", st.session_state.dados['nome'])
+    st.session_state.dados['nasc'] = c2.date_input("Nascimento", value=st.session_state.dados.get('nasc', date(2015, 1, 1)), min_value=date(2000, 1, 1), max_value=date.today())
     
-    # Calendário Ajustado: Padrão 2015, Range 2000-2030
-    st.session_state.dados['nasc'] = c2.date_input("Nascimento", 
-        value=st.session_state.dados.get('nasc', date(2015, 1, 1)), 
-        min_value=date(2000, 1, 1), 
-        max_value=date.today()
-    )
-    
-    # Lista de Séries Corrigida
-    lista_series = [
-        "Educação Infantil",
-        "1º Ano (Anos Iniciais)", "2º Ano (Anos Iniciais)", "3º Ano (Anos Iniciais)", "4º Ano (Anos Iniciais)", "5º Ano (Anos Iniciais)",
-        "6º Ano (Anos Finais)", "7º Ano (Anos Finais)", "8º Ano (Anos Finais)", "9º Ano (Anos Finais)",
-        "1ª Série (Ensino Médio)", "2ª Série (Ensino Médio)", "3ª Série (Ensino Médio)"
-    ]
+    lista_series = ["Educação Infantil", "1º Ano (Anos Iniciais)", "2º Ano (Anos Iniciais)", "3º Ano (Anos Iniciais)", "4º Ano (Anos Iniciais)", "5º Ano (Anos Iniciais)", "6º Ano (Anos Finais)", "7º Ano (Anos Finais)", "8º Ano (Anos Finais)", "9º Ano (Anos Finais)", "1ª Série (Ensino Médio)", "2ª Série (Ensino Médio)", "3ª Série (Ensino Médio)"]
     st.session_state.dados['serie'] = c3.selectbox("Série/Ano", lista_series, placeholder="Selecione...")
     st.session_state.dados['turma'] = c4.text_input("Turma", st.session_state.dados['turma'])
 
@@ -309,6 +303,7 @@ with tab1:
     with ch2:
         st.session_state.dados['familia'] = st.text_area("Contexto Familiar", st.session_state.dados['familia'], height=100, help="Rotina, cuidadores e expectativas.")
     
+    # Campo com auto-reparo
     st.session_state.dados['composicao_familiar'] = st.text_input("Composição Familiar", st.session_state.dados.get('composicao_familiar', ''), placeholder="Quem mora com a criança?")
 
     st.markdown("##### 2. Saúde e Diagnóstico")
@@ -363,7 +358,6 @@ with tab3:
 with tab4:
     st.markdown("### <i class='ri-map-pin-user-line'></i> Mapeamento Integral", unsafe_allow_html=True)
     
-    # Bloco 1: Potencialidades (Container)
     with st.container(border=True):
         st.markdown("#### <i class='ri-lightbulb-flash-line' style='color:#004E92'></i> Potencialidades e Hiperfoco", unsafe_allow_html=True)
         c_pot1, c_pot2 = st.columns(2)
@@ -372,7 +366,6 @@ with tab4:
 
     st.divider()
     
-    # Bloco 2: Barreiras (Container - Simetria Visual Ajustada)
     with st.container(border=True):
         st.markdown("#### <i class='ri-barricade-line' style='color:#FF6B6B'></i> Barreiras e Nível de Suporte", unsafe_allow_html=True)
         
@@ -394,7 +387,6 @@ with tab4:
         idx = 0
         for cat_nome, itens in categorias.items():
             with cols[idx % 3]:
-                # Sub-containers para organização
                 with st.container():
                     st.markdown(f"**{cat_nome}**")
                     selecionados = st.multiselect(f"Barreiras:", itens, key=f"multi_{cat_nome}", placeholder="Selecione...", help="Selecione apenas o que impacta a aprendizagem.")
@@ -461,4 +453,4 @@ with tab7:
     else: st.warning("Gere o plano na aba Consultoria IA primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.5 | Golden Edition</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v4.6 | Auto-Reparo Edition</div>", unsafe_allow_html=True)
