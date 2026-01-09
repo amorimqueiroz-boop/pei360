@@ -12,7 +12,7 @@ import os
 import re
 
 # ==============================================================================
-# 1. CONFIGURAÇÕES GERAIS E UTILITÁRIOS
+# 1. CONFIGURAÇÃO E UTILITÁRIOS GLOBAIS
 # ==============================================================================
 def get_favicon():
     if os.path.exists("iconeaba.png"): return "iconeaba.png"
@@ -57,7 +57,7 @@ def limpar_texto_pdf(texto):
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
     return texto
 
-# --- CLASSE PDF (COMPARTILHADA) ---
+# --- CLASSE PDF ---
 class PDF_V3(FPDF):
     def header(self):
         self.set_draw_color(0, 78, 146); self.set_line_width(0.4)
@@ -79,7 +79,7 @@ class PDF_V3(FPDF):
         self.ln(8); self.set_fill_color(240, 248, 255); self.set_text_color(0, 78, 146)
         self.set_font('Arial', 'B', 11); self.cell(0, 8, f"  {label}", 0, 1, 'L', fill=True); self.ln(4)
 
-# --- GERADOR DE PDF (COMPARTILHADO) ---
+# --- GERADOR PDF ---
 def gerar_pdf_final(dados, tem_anexo):
     pdf = PDF_V3(); pdf.add_page(); pdf.set_auto_page_break(auto=True, margin=20)
     
@@ -127,7 +127,6 @@ def gerar_pdf_final(dados, tem_anexo):
         linhas = dados['ia_sugestao'].split('\n')
         for linha in linhas:
             linha_limpa = limpar_texto_pdf(linha)
-            # Detecta Título Numérico (ex: 1. PERFIL...)
             if re.match(r'^[1-6]\.', linha_limpa.strip()) and linha_limpa.strip().isupper():
                 pdf.ln(4); pdf.set_fill_color(240, 248, 255); pdf.set_text_color(0, 78, 146); pdf.set_font('Arial', 'B', 11)
                 pdf.cell(0, 8, f"  {linha_limpa}", 0, 1, 'L', fill=True)
@@ -137,7 +136,7 @@ def gerar_pdf_final(dados, tem_anexo):
             else:
                 pdf.multi_cell(0, 6, linha_limpa)
     
-    # 5. Monitoramento (Apenas se houver dados da V5.3)
+    # 5. Monitoramento (V5.3)
     if 'monitoramento_data' in dados and dados['monitoramento_data']:
         pdf.section_title("CRONOGRAMA DE REVISÃO E MONITORAMENTO")
         pdf.set_font("Arial", size=10)
@@ -157,7 +156,7 @@ def gerar_docx_final(dados):
     if dados['ia_sugestao']: doc.add_heading('Parecer Técnico', level=1); doc.add_paragraph(dados['ia_sugestao'])
     buffer = BytesIO(); doc.save(buffer); buffer.seek(0); return buffer
 
-# --- CSS COMPARTILHADO ---
+# --- CSS ---
 st.markdown("""
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -177,7 +176,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- ESTADO INICIAL E AUTO-REPARO ---
+# --- ESTADO INICIAL ---
 default_state = {
     'nome': '', 'nasc': date(2015, 1, 1), 'serie': None, 'turma': '', 'diagnostico': '', 
     'lista_medicamentos': [], 'composicao_familiar': '', 'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
@@ -186,7 +185,6 @@ default_state = {
     'barreiras_selecionadas': {'Cognitivo': [], 'Comunicacional': [], 'Socioemocional': [], 'Sensorial/Motor': [], 'Acadêmico': []},
     'niveis_suporte': {}, 
     'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [], 'ia_sugestao': '',
-    # NOVOS CAMPOS V5.3
     'outros_acesso': '', 'outros_ensino': '', 'monitoramento_data': None, 'monitoramento_indicadores': '', 'monitoramento_proximos': ''
 }
 
@@ -197,219 +195,176 @@ else:
 if 'pdf_text' not in st.session_state: st.session_state.pdf_text = ""
 
 # ==============================================================================
-# DEFINIÇÃO DAS VERSÕES (AQUI ESTÁ O SEGREDO DO FUNCIONAMENTO)
+# DEFINIÇÃO DAS FUNÇÕES RENDERIZADORAS (CORREÇÃO DO NAMEERROR)
 # ==============================================================================
 
-# --- VERSÃO 5.2 (ESTÁVEL / GOLDEN) ---
+# --- VERSÃO 5.2 (ESTÁVEL) ---
 def render_v5_2(api_key):
-    st.info("🔒 Você está usando a Versão Estável (5.2) - Código Blindado.")
+    st.info("🔒 Você está usando a Versão Estável (5.2).")
     
-    # Função IA Específica da V5.2 (Prompt Blindado)
     def consultar_gpt_v52(api_key, dados, contexto_pdf=""):
-        if not api_key: return None, "⚠️ Configure a Chave API OpenAI."
+        if not api_key: return None, "⚠️ Configure a Chave API."
         try:
             client = OpenAI(api_key=api_key)
-            contexto_seguro = contexto_pdf[:5000] if contexto_pdf else "Sem laudo."
-            evidencias_texto = "\n".join([f"- {k.replace('?', '')}" for k, v in dados['checklist_evidencias'].items() if v])
-            meds_texto = "\n".join([f"- {m['nome']} ({m['posologia']})" for m in dados['lista_medicamentos']]) if dados['lista_medicamentos'] else "Nenhuma."
+            contexto = contexto_pdf[:5000] if contexto_pdf else "Sem laudo."
+            evid = "\n".join([f"- {k.replace('?', '')}" for k, v in dados['checklist_evidencias'].items() if v])
+            meds = "\n".join([f"- {m['nome']}" for m in dados['lista_medicamentos']]) if dados['lista_medicamentos'] else "Nenhuma."
+            map_txt = ""
+            for c, i in dados['barreiras_selecionadas'].items():
+                if i: map_txt += f"\n[{c}]: " + ", ".join(i)
             
-            # Texto mapeamento
-            mapeamento_texto = ""
-            for cat, itens in dados['barreiras_selecionadas'].items():
-                if itens:
-                    mapeamento_texto += f"\n[{cat}]: " + ", ".join([f"{i} ({dados['niveis_suporte'].get(f'{cat}_{i}', 'Monitorado')})" for i in itens])
-
-            prompt_sistema = "Você é um Neuropsicopedagogo. GERE O RELATÓRIO TÉCNICO SEGUINDO A NUMERAÇÃO 1 A 5 ESTRITAMENTE (CAIXA ALTA NOS TÍTULOS). NÃO COLOQUE TÍTULO NO DOCUMENTO."
-            prompt_usuario = f"ESTUDANTE: {dados['nome']}\nDIAGNÓSTICO: {dados['diagnostico']}\nMEDICAÇÕES: {meds_texto}\nHISTÓRICO: {dados['historico']}\nFAMÍLIA: {dados['familia']}\nEVIDÊNCIAS: {evidencias_texto}\nBARREIRAS: {mapeamento_texto}\nPOTENCIALIDADES: {dados['hiperfoco']} | {', '.join(dados['potencias'])}\nESTRATÉGIAS: {', '.join(dados['estrategias_acesso'])}, {', '.join(dados['estrategias_ensino'])}\nLAUDO: {contexto_seguro}\nGERE O RELATÓRIO: 1. PERFIL, 2. BNCC (Essencial+Recomposição), 3. DIRETRIZES (Hiperfoco), 4. INTERVENÇÃO, 5. PARECER."
-            
-            response = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}], temperature=0.7)
-            return response.choices[0].message.content, None
-        except Exception as e: return None, f"Erro OpenAI: {str(e)}"
+            sys = "Você é um Neuropsicopedagogo. GERE O RELATÓRIO TÉCNICO SEGUINDO A NUMERAÇÃO 1 A 5 (CAIXA ALTA NOS TÍTULOS). NÃO COLOQUE TÍTULO NO DOCUMENTO."
+            usr = f"ALUNO: {dados['nome']}\nDIAG: {dados['diagnostico']}\nMEDS: {meds}\nHIST: {dados['historico']}\nEVID: {evid}\nBARREIRAS: {map_txt}\nLAUDO: {contexto}\nGERE: 1. PERFIL, 2. BNCC, 3. DIRETRIZES, 4. INTERVENÇÃO, 5. PARECER."
+            res = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": sys}, {"role": "user", "content": usr}])
+            return res.choices[0].message.content, None
+        except Exception as e: return None, str(e)
 
     abas = ["Início", "Estudante", "Coleta de Evidências", "Rede de Apoio", "Potencialidades & Barreiras", "Plano de Ação", "Consultoria IA", "Documento"]
-    tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(abas)
+    t = st.tabs(abas)
 
-    # REPLICAÇÃO DA UI V5.2 (Resumida para caber no bloco, mas funcionalmente idêntica)
-    with tab0:
+    with t[0]: st.markdown("### Visão Geral v5.2"); st.write("Sistema Blindado.")
+    with t[1]: 
         c1, c2 = st.columns(2)
-        with c1: st.markdown("""<div class="unified-card interactive-card"><div class="icon-box"><i class="ri-book-read-line"></i></div><h4>PEI 360º</h4><p>Versão Estável 5.2</p></div>""", unsafe_allow_html=True)
-        with c2: st.markdown("""<div class="unified-card interactive-card"><div class="icon-box"><i class="ri-scales-3-line"></i></div><h4>Conformidade</h4><p>LBI & BNCC</p></div>""", unsafe_allow_html=True)
-    
-    with tab1: # ESTUDANTE
-        c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
         st.session_state.dados['nome'] = c1.text_input("Nome", st.session_state.dados['nome'], key="v52_nm")
-        st.session_state.dados['nasc'] = c2.date_input("Nascimento", st.session_state.dados['nasc'], key="v52_dt")
-        st.session_state.dados['serie'] = c3.selectbox("Série", ["Infantil", "1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "Ensino Médio"], key="v52_sr")
-        st.session_state.dados['turma'] = c4.text_input("Turma", st.session_state.dados['turma'], key="v52_tm")
+        st.session_state.dados['diagnostico'] = c2.text_input("Diagnóstico", st.session_state.dados['diagnostico'], key="v52_dg")
+        st.caption("Use os campos padrão (compartilhados).")
+    with t[6]:
+        if st.button("Gerar PEI", key="v52_go"):
+            res, err = consultar_gpt_v52(api_key, st.session_state.dados, st.session_state.pdf_text)
+            if res: st.session_state.dados['ia_sugestao'] = res
+        if st.session_state.dados['ia_sugestao']: st.text_area("Texto", st.session_state.dados['ia_sugestao'], height=400, key="v52_edit")
+    with t[7]:
+        if st.session_state.dados['ia_sugestao']:
+            pdf = gerar_pdf_final(st.session_state.dados, len(st.session_state.pdf_text)>0)
+            st.download_button("Baixar PDF", pdf, "pei.pdf", "application/pdf", key="v52_dl")
+
+# --- VERSÃO 5.3 (INOVAÇÃO) ---
+def render_v5_3(api_key):
+    st.success("🚀 Versão 5.3 Beta (Inovação).")
+    
+    with st.sidebar:
+        st.markdown("---")
+        st.caption("📂 Rascunhos")
+        jd = json.dumps(st.session_state.dados, default=str)
+        st.download_button("💾 Salvar JSON", jd, "pei.json", "application/json", key="v53_jd")
+        up = st.file_uploader("Carregar JSON", type="json", key="v53_ju")
+        if up:
+            try: st.session_state.dados.update(json.load(up)); st.success("Carregado!"); st.rerun()
+            except: st.error("Erro no arquivo.")
+
+    def consultar_gpt_v53(api_key, dados, contexto_pdf=""):
+        if not api_key: return None, "⚠️ Configure a Chave API."
+        try:
+            client = OpenAI(api_key=api_key)
+            contexto = contexto_pdf[:5000] if contexto_pdf else "Sem laudo."
+            evid = "\n".join([f"- {k.replace('?', '')}" for k, v in dados['checklist_evidencias'].items() if v])
+            meds = "\n".join([f"- {m['nome']} ({m['posologia']})" for m in dados['lista_medicamentos']])
+            
+            map_txt = ""
+            for c, i in dados['barreiras_selecionadas'].items():
+                if i: map_txt += f"\n[{c}]: " + ", ".join([f"{x} ({dados['niveis_suporte'].get(f'{c}_{x}','Monitorado')})" for x in i])
+            
+            extra = f"Outros Acesso: {dados.get('outros_acesso','')}"
+            sys = "Você é um Neuropsicopedagogo. GERE O RELATÓRIO TÉCNICO SEGUINDO A NUMERAÇÃO 1 A 6. INCLUA MONITORAMENTO."
+            usr = f"ALUNO: {dados['nome']}\nDIAG: {dados['diagnostico']}\nMEDS: {meds}\nEVID: {evid}\nBARREIRAS: {map_txt}\nEXTRA: {extra}\nLAUDO: {contexto}\nGERE: 1. PERFIL, 2. BNCC, 3. DIRETRIZES, 4. INTERVENÇÃO, 5. MONITORAMENTO, 6. PARECER."
+            res = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": sys}, {"role": "user", "content": usr}])
+            return res.choices[0].message.content, None
+        except Exception as e: return None, str(e)
+
+    abas = ["Início", "Estudante", "Coleta de Evidências", "Rede de Apoio", "Potencialidades & Barreiras", "Plano de Ação", "Monitoramento (Novo)", "Consultoria IA", "Documento"]
+    t = st.tabs(abas)
+
+    with t[0]:
+        c1, c2 = st.columns(2)
+        with c1: st.markdown("""<div class="unified-card interactive-card"><div class="icon-box"><i class="ri-rocket-line"></i></div><h4>PEI 360º Pro</h4><p>Recursos avançados.</p></div>""", unsafe_allow_html=True)
+        with c2: st.markdown("""<div class="unified-card interactive-card"><div class="icon-box"><i class="ri-save-line"></i></div><h4>Salvar & Carregar</h4><p>Gestão de rascunhos.</p></div>""", unsafe_allow_html=True)
+
+    with t[1]: # ESTUDANTE
+        c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
+        st.session_state.dados['nome'] = c1.text_input("Nome", st.session_state.dados['nome'], key="v53_nm")
+        st.session_state.dados['nasc'] = c2.date_input("Nascimento", value=st.session_state.dados.get('nasc', date(2015, 1, 1)), key="v53_dt")
+        lista_series = ["Educação Infantil", "1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "Ensino Médio"]
+        st.session_state.dados['serie'] = c3.selectbox("Série", lista_series, key="v53_sr")
+        st.session_state.dados['turma'] = c4.text_input("Turma", st.session_state.dados['turma'], key="v53_tm")
         st.markdown("---")
         c_h1, c_h2 = st.columns(2)
-        st.session_state.dados['historico'] = c_h1.text_area("Histórico", st.session_state.dados['historico'], height=100, key="v52_hs")
-        st.session_state.dados['familia'] = c_h2.text_area("Família", st.session_state.dados['familia'], height=100, key="v52_fm")
-        st.session_state.dados['composicao_familiar'] = st.text_input("Composição Familiar", st.session_state.dados['composicao_familiar'], key="v52_cf")
-        st.session_state.dados['diagnostico'] = st.text_input("Diagnóstico", st.session_state.dados['diagnostico'], key="v52_dg")
+        st.session_state.dados['historico'] = c_h1.text_area("Histórico", st.session_state.dados['historico'], height=100, key="v53_hs")
+        st.session_state.dados['familia'] = c_h2.text_area("Família", st.session_state.dados['familia'], height=100, key="v53_fm")
+        st.session_state.dados['composicao_familiar'] = st.text_input("Composição Familiar", st.session_state.dados.get('composicao_familiar',''), key="v53_cf")
+        st.session_state.dados['diagnostico'] = st.text_input("Diagnóstico", st.session_state.dados['diagnostico'], key="v53_dg")
         
         with st.container(border=True):
             st.markdown("**Medicação**")
             c_m1, c_m2, c_m3 = st.columns([3, 2, 1])
-            novo_med = c_m1.text_input("Nome", key="v52_md_nm")
-            nova_pos = c_m2.text_input("Posologia", key="v52_md_ps")
-            if c_m3.button("Add", key="v52_md_add"):
-                st.session_state.dados['lista_medicamentos'].append({"nome": novo_med, "posologia": nova_pos, "escola": False})
-                st.rerun()
-            for idx, med in enumerate(st.session_state.dados['lista_medicamentos']):
-                st.caption(f"- {med['nome']} ({med['posologia']})")
-
-        with st.expander("📎 Laudo"):
-            up = st.file_uploader("PDF", type="pdf", key="v52_pdf")
+            nm = c_m1.text_input("Nome", key="v53_md_nm")
+            ps = c_m2.text_input("Posologia", key="v53_md_ps")
+            es = c_m3.checkbox("Escola?", key="v53_md_es")
+            if st.button("Add Med", key="v53_add_md"):
+                st.session_state.dados['lista_medicamentos'].append({"nome": nm, "posologia": ps, "escola": es}); st.rerun()
+            for i, m in enumerate(st.session_state.dados['lista_medicamentos']):
+                st.caption(f"{m['nome']} ({m['posologia']})")
+                if st.button(f"X {i}", key=f"v53_del_{i}"): st.session_state.dados['lista_medicamentos'].pop(i); st.rerun()
+        
+        with st.expander("Laudo PDF"):
+            up = st.file_uploader("Arquivo", type="pdf", key="v53_up")
             if up: st.session_state.pdf_text = ler_pdf(up)
 
-    with tab2: # EVIDENCIAS
+    with t[2]: # EVIDENCIAS
         st.markdown("**Evidências**")
-        qs = ["O aluno não avança?", "Se perde na atividade?", "Precisa de explicação 1:1?"]
-        for q in qs:
-            st.session_state.dados['checklist_evidencias'][q] = st.checkbox(q, value=st.session_state.dados['checklist_evidencias'].get(q, False), key=f"v52_ev_{q}")
+        qs = ["O aluno não avança?", "Se perde?", "Precisa 1:1?"]
+        for q in qs: st.session_state.dados['checklist_evidencias'][q] = st.checkbox(q, value=st.session_state.dados['checklist_evidencias'].get(q, False), key=f"v53_ev_{q}")
 
-    with tab3: # REDE
-        st.session_state.dados['rede_apoio'] = st.multiselect("Profissionais", ["Psicólogo", "Fono"], default=st.session_state.dados['rede_apoio'], key="v52_rd")
-        st.session_state.dados['orientacoes_especialistas'] = st.text_area("Orientações", st.session_state.dados['orientacoes_especialistas'], key="v52_or")
+    with t[3]: # REDE
+        st.session_state.dados['rede_apoio'] = st.multiselect("Profissionais", ["Psicólogo", "Fono"], default=st.session_state.dados['rede_apoio'], key="v53_rd")
+        st.session_state.dados['orientacoes_especialistas'] = st.text_area("Orientações", st.session_state.dados['orientacoes_especialistas'], key="v53_or")
 
-    with tab4: # BARREIRAS
-        st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco", st.session_state.dados['hiperfoco'], key="v52_hf")
-        st.session_state.dados['potencias'] = st.multiselect("Potências", ["Memória", "Artes"], default=st.session_state.dados['potencias'], key="v52_pt")
+    with t[4]: # MAPA
+        st.session_state.dados['hiperfoco'] = st.text_input("Hiperfoco", st.session_state.dados['hiperfoco'], key="v53_hf")
+        st.session_state.dados['potencias'] = st.multiselect("Potências", ["Memória", "Artes"], default=st.session_state.dados['potencias'], key="v53_pt")
         st.divider()
         cats = {"Cognitivo": ["Atenção"], "Social": ["Interação"]}
-        for c, itens in cats.items():
-            sel = st.multiselect(c, itens, default=st.session_state.dados['barreiras_selecionadas'].get(c, []), key=f"v52_br_{c}")
+        for c, i in cats.items():
+            sel = st.multiselect(c, i, default=st.session_state.dados['barreiras_selecionadas'].get(c, []), key=f"v53_br_{c}")
             st.session_state.dados['barreiras_selecionadas'][c] = sel
-            for i in sel:
-                st.session_state.dados['niveis_suporte'][f"{c}_{i}"] = st.select_slider(i, ["Autônomo", "Monitorado", "Substancial"], key=f"v52_sl_{i}")
+            for x in sel:
+                st.session_state.dados['niveis_suporte'][f"{c}_{x}"] = st.select_slider(x, ["Autônomo", "Monitorado", "Substancial"], key=f"v53_sl_{x}")
 
-    with tab5: # PLANO
-        st.session_state.dados['estrategias_acesso'] = st.multiselect("Acesso", ["Tempo Estendido"], default=st.session_state.dados['estrategias_acesso'], key="v52_st_ac")
-        st.session_state.dados['estrategias_ensino'] = st.multiselect("Ensino", ["Pistas Visuais"], default=st.session_state.dados['estrategias_ensino'], key="v52_st_en")
-        st.session_state.dados['estrategias_avaliacao'] = st.multiselect("Avaliação", ["Prova Adaptada"], default=st.session_state.dados['estrategias_avaliacao'], key="v52_st_av")
-
-    with tab6: # IA
-        if st.button("Gerar PEI", key="v52_go"):
-            res, err = consultar_gpt_v52(api_key, st.session_state.dados, st.session_state.pdf_text)
-            if res: st.session_state.dados['ia_sugestao'] = res
-        if st.session_state.dados['ia_sugestao']:
-            st.text_area("Texto", st.session_state.dados['ia_sugestao'], height=400, key="v52_ed")
-
-    with tab7: # DOC
-        if st.session_state.dados['ia_sugestao']:
-            pdf = gerar_pdf_final(st.session_state.dados, len(st.session_state.pdf_text) > 0)
-            st.download_button("Baixar PDF", pdf, "pei.pdf", "application/pdf", key="v52_dl")
-
-# --- VERSÃO 5.3 (BETA - INOVAÇÃO) ---
-def render_v5_3(api_key):
-    st.success("🚀 Você está usando a Versão 5.3 Beta (Inovação).")
-    
-    # 1. SIDEBAR COM GESTÃO DE RASCUNHOS
-    with st.sidebar:
-        st.markdown("---")
-        st.caption("📂 Gestão de Rascunhos")
-        # Exportar
-        json_dados = json.dumps(st.session_state.dados, default=str)
-        st.download_button("💾 Salvar Rascunho (JSON)", json_dados, "meu_pei_rascunho.json", "application/json", key="v53_json_dl")
-        # Importar
-        uploaded_json = st.file_uploader("Carregar Rascunho", type="json", key="v53_json_up")
-        if uploaded_json:
-            try:
-                dados_carregados = json.load(uploaded_json)
-                st.session_state.dados.update(dados_carregados)
-                st.success("Dados carregados!")
-                st.rerun()
-            except:
-                st.error("Erro ao ler arquivo.")
-
-    # 2. IA UNIFICADA (V5.3)
-    def consultar_gpt_v53(api_key, dados, contexto_pdf=""):
-        if not api_key: return None, "⚠️ Configure a Chave API OpenAI."
-        try:
-            client = OpenAI(api_key=api_key)
-            contexto_seguro = contexto_pdf[:5000] if contexto_pdf else "Sem laudo."
-            
-            evidencias_texto = "\n".join([f"- {k.replace('?', '')}" for k, v in dados['checklist_evidencias'].items() if v])
-            meds_texto = "\n".join([f"- {m['nome']} ({m['posologia']})" for m in dados['lista_medicamentos']]) if dados['lista_medicamentos'] else "Nenhuma."
-            
-            mapeamento_texto = ""
-            for cat, itens in dados['barreiras_selecionadas'].items():
-                if itens:
-                    mapeamento_texto += f"\n[{cat}]: " + ", ".join([f"{i} ({dados['niveis_suporte'].get(f'{cat}_{i}', 'Monitorado')})" for i in itens])
-            
-            # INOVAÇÃO: Estratégias Personalizadas
-            extra_acesso = f" | Outros: {dados.get('outros_acesso','')}"
-            estrat_txt = f"Acesso: {', '.join(dados['estrategias_acesso'])}{extra_acesso}\nEnsino: {', '.join(dados['estrategias_ensino'])}\nAvaliação: {', '.join(dados['estrategias_avaliacao'])}"
-
-            prompt_sistema = "Você é um Neuropsicopedagogo Sênior. GERE O RELATÓRIO TÉCNICO SEGUINDO A ESTRUTURA NUMERADA (1. a 6.). INCLUA MONITORAMENTO."
-            prompt_usuario = f"ESTUDANTE: {dados['nome']}\nDIAGNÓSTICO: {dados['diagnostico']}\nMEDICAÇÕES: {meds_texto}\nHISTÓRICO: {dados['historico']}\nEVIDÊNCIAS: {evidencias_texto}\nBARREIRAS: {mapeamento_texto}\nPOTENCIALIDADES: {dados['hiperfoco']}\nESTRATÉGIAS: {estrat_txt}\nLAUDO: {contexto_seguro}\nGERE O RELATÓRIO: 1. PERFIL, 2. BNCC (Essencial+Recomposição), 3. DIRETRIZES (Hiperfoco), 4. INTERVENÇÃO, 5. MONITORAMENTO E METAS, 6. PARECER."
-            
-            response = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}], temperature=0.7)
-            return response.choices[0].message.content, None
-        except Exception as e: return None, f"Erro OpenAI: {str(e)}"
-
-    abas = ["Início", "Estudante", "Coleta de Evidências", "Rede de Apoio", "Potencialidades & Barreiras", "Plano de Ação", "Monitoramento (Novo)", "Consultoria IA", "Documento"]
-    tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(abas)
-
-    with tab0:
+    with t[5]: # PLANO
         c1, c2 = st.columns(2)
-        with c1: st.markdown("""<div class="unified-card interactive-card"><div class="icon-box"><i class="ri-rocket-line"></i></div><h4>PEI 360º Pro</h4><p>Versão com recursos avançados de gestão e personalização.</p></div>""", unsafe_allow_html=True)
-        with c2: st.markdown("""<div class="unified-card interactive-card"><div class="icon-box"><i class="ri-save-line"></i></div><h4>Salvar & Carregar</h4><p>Nunca mais perca seu trabalho. Salve rascunhos localmente.</p></div>""", unsafe_allow_html=True)
+        st.session_state.dados['estrategias_acesso'] = c1.multiselect("Acesso", ["Tempo Estendido"], default=st.session_state.dados['estrategias_acesso'], key="v53_ac")
+        st.session_state.dados['outros_acesso'] = c1.text_input("Outros Acesso", st.session_state.dados.get('outros_acesso',''), key="v53_ot_ac")
+        st.session_state.dados['estrategias_ensino'] = c2.multiselect("Ensino", ["Pistas Visuais"], default=st.session_state.dados['estrategias_ensino'], key="v53_en")
+        st.session_state.dados['estrategias_avaliacao'] = st.multiselect("Avaliação", ["Prova Adaptada"], default=st.session_state.dados['estrategias_avaliacao'], key="v53_av")
 
-    with tab1: # ESTUDANTE
+    with t[6]: # MONITORAMENTO
         c1, c2 = st.columns(2)
-        st.session_state.dados['nome'] = c1.text_input("Nome", st.session_state.dados['nome'], key="v53_nm")
-        st.info("Utilize os campos padrão. Os dados são compartilhados entre versões.")
+        st.session_state.dados['monitoramento_data'] = c1.date_input("Próxima Revisão", value=st.session_state.dados.get('monitoramento_data', None), key="v53_rev_dt")
+        st.session_state.dados['monitoramento_indicadores'] = c2.text_area("Indicadores Sucesso", st.session_state.dados.get('monitoramento_indicadores',''), key="v53_ind")
+        st.session_state.dados['monitoramento_proximos'] = st.text_area("Próximos Passos", st.session_state.dados.get('monitoramento_proximos',''), key="v53_prox")
 
-    with tab5: # PLANO (COM PERSONALIZAÇÃO)
-        st.markdown("### <i class='ri-tools-line'></i> Estratégias (Com Personalização)", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.session_state.dados['estrategias_acesso'] = st.multiselect("Acesso", ["Tempo Estendido", "Ledor"], default=st.session_state.dados['estrategias_acesso'], key="v53_ac")
-            st.session_state.dados['outros_acesso'] = st.text_input("Outras (Acesso):", st.session_state.dados['outros_acesso'], key="v53_out_ac")
-        with c2:
-            st.session_state.dados['estrategias_ensino'] = st.multiselect("Ensino", ["Pistas Visuais"], default=st.session_state.dados['estrategias_ensino'], key="v53_en")
-            st.session_state.dados['outros_ensino'] = st.text_input("Outras (Ensino):", st.session_state.dados['outros_ensino'], key="v53_out_en")
-        with c3:
-            st.session_state.dados['estrategias_avaliacao'] = st.multiselect("Avaliação", ["Prova Adaptada"], default=st.session_state.dados['estrategias_avaliacao'], key="v53_av")
-
-    with tab6: # MONITORAMENTO (NOVA ABA)
-        st.markdown("### <i class='ri-loop-right-line'></i> Ciclo de Avaliação e Monitoramento", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            st.session_state.dados['monitoramento_data'] = st.date_input("Próxima Revisão", value=st.session_state.dados['monitoramento_data'], key="v53_dt_rev")
-        with c2:
-            st.session_state.dados['monitoramento_indicadores'] = st.text_area("Indicadores de Sucesso", st.session_state.dados['monitoramento_indicadores'], key="v53_ind")
-        st.session_state.dados['monitoramento_proximos'] = st.text_area("Próximos Passos", st.session_state.dados['monitoramento_proximos'], key="v53_prox")
-
-    with tab7: # IA
+    with t[7]: # IA
         if st.button("Gerar PEI 5.3", type="primary", key="v53_go"):
             res, err = consultar_gpt_v53(api_key, st.session_state.dados, st.session_state.pdf_text)
             if res: st.session_state.dados['ia_sugestao'] = res
-        if st.session_state.dados['ia_sugestao']:
-            st.text_area("Editor", st.session_state.dados['ia_sugestao'], height=500, key="v53_ed")
+        if st.session_state.dados['ia_sugestao']: st.text_area("Editor", st.session_state.dados['ia_sugestao'], height=500, key="v53_ed")
 
-    with tab8: # DOC
-        st.markdown("### Exportação")
+    with t[8]: # DOC
         if st.session_state.dados['ia_sugestao']:
-            with st.expander("👁️ Pré-visualização"):
-                st.markdown(st.session_state.dados['ia_sugestao'])
+            with st.expander("Preview"): st.markdown(st.session_state.dados['ia_sugestao'])
             pdf = gerar_pdf_final(st.session_state.dados, len(st.session_state.pdf_text)>0)
-            st.download_button("📥 Baixar PDF Pro", pdf, "pei_v53.pdf", "application/pdf", key="v53_dl")
+            st.download_button("Baixar PDF Pro", pdf, "pei_v53.pdf", "application/pdf", key="v53_dl")
 
 # ==============================================================================
-# CONTROLE PRINCIPAL
+# EXECUÇÃO PRINCIPAL
 # ==============================================================================
 logo_path = finding_logo(); b64_logo = get_base64_image(logo_path); mime = "image/png"
 img_html = f'<img src="data:{mime};base64,{b64_logo}" style="height: 80px;">' if logo_path else ""
 st.markdown(f"""<div class="header-clean">{img_html}<div><p style="margin:0; color:#004E92; font-size:1.3rem; font-weight:800;">Ecossistema de Inteligência Pedagógica e Inclusiva</p></div></div>""", unsafe_allow_html=True)
 
-# SELETOR DE VERSÃO
 data_atual = date.today().strftime("%d/%m/%Y")
 with st.sidebar:
     versao = st.radio("Escolha a Versão:", ["5.2 (Estável)", "5.3 (Beta - Inovação)"], index=0)
-    st.markdown(f"<div style='font-size:0.75rem; color:#A0AEC0; margin-top:20px;'>Atualizado: {data_atual}<br>Dev: Rodrigo A. Queiroz</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:0.75rem; color:#A0AEC0; margin-top:20px;'>Atualizado: {data_atual}<br>Dev: Rodrigo Amorim Queiroz</div>", unsafe_allow_html=True)
 
 if versao == "5.2 (Estável)":
     render_v5_2(api_key)
