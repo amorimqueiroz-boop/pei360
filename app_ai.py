@@ -107,7 +107,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. IA (PROMPT COM BNCC EXPANDIDA E SEPARADA) ---
+# --- 4. IA (PROMPT PEDAGÓGICO SEM TÍTULO REDUNDANTE) ---
 def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
@@ -124,7 +124,6 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
                 meds_texto += f"- {m['nome']} ({m['posologia']}). Admin na escola: {'SIM' if m['escola'] else 'NÃO'}.\n"
         else: meds_texto = "Nenhuma medicação informada."
 
-        # Prepara texto do mapeamento para a IA ler
         mapeamento_texto = ""
         for categoria, itens in dados['barreiras_selecionadas'].items():
             if itens:
@@ -137,19 +136,19 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
 
         prompt_sistema = """
         Você é um Neuropsicopedagogo Sênior.
-        Sua missão é construir um PEI (Plano de Ensino Individualizado) completo e detalhado.
+        Sua missão é construir um PEI (Plano de Ensino Individualizado) centrado no estudante.
         
-        ESTRUTURA OBRIGATÓRIA (TÍTULOS EM CAIXA ALTA E NUMERADOS):
-        1. PERFIL BIOPSICOSSOCIAL DO ESTUDANTE
-        2. PLANEJAMENTO CURRICULAR E BNCC (Crucial: Liste múltiplas habilidades)
-        3. DIRETRIZES PRÁTICAS PARA ADAPTAÇÃO
+        REGRAS DE FORMATAÇÃO (CRUCIAL):
+        1. NÃO COLOQUE TÍTULO NO DOCUMENTO (Ex: "PEI", "Plano de Ensino", "Relatório"). O cabeçalho já existe no PDF.
+        2. Comece ESTRITAMENTE pelo título do tópico "1. PERFIL BIOPSICOSSOCIAL DO ESTUDANTE".
+        3. Use CAIXA ALTA apenas nos títulos numéricos (1., 2., 3., 4., 5.).
+        
+        ESTRUTURA OBRIGATÓRIA:
+        1. PERFIL BIOPSICOSSOCIAL DO ESTUDANTE (Narrativa humanizada)
+        2. PLANEJAMENTO CURRICULAR E BNCC (Habilidades Essenciais + Recomposição)
+        3. DIRETRIZES PRÁTICAS PARA ADAPTAÇÃO (Foco no Hiperfoco)
         4. PLANO DE INTERVENÇÃO E ESTRATÉGIAS
         5. PARECER FINAL E RECOMENDAÇÕES
-        
-        DIRETRIZES:
-        - No ponto 1, narre a história do aluno de forma humanizada.
-        - No ponto 2, seja GENEROSO: Liste as Habilidades Essenciais da série atual E as Habilidades de Recomposição (anos anteriores) necessárias para suprir defasagens. Use sub-títulos claros (ex: "Habilidades do Ano:", "Recomposição:").
-        - No ponto 3, dê exemplos claros de adaptação baseados no Hiperfoco.
         """
 
         prompt_usuario = f"""
@@ -162,7 +161,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         Família: {dados['familia']}
         
         EVIDÊNCIAS DE SALA: {evidencias_texto}
-        BARREIRAS MAPEADAS: {mapeamento_texto}
+        BARREIRAS: {mapeamento_texto}
         POTENCIALIDADES: Hiperfoco: {dados['hiperfoco']} | Fortes: {', '.join(dados['potencias'])}
         
         ESTRATÉGIAS: 
@@ -172,7 +171,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         
         LAUDO: {contexto_seguro}
         
-        GERE O RELATÓRIO TÉCNICO. Garanta que o tópico 2 (BNCC) seja rico e detalhe habilidades do ano e de anos anteriores.
+        GERE O RELATÓRIO TÉCNICO. Comece direto pelo tópico 1.
         """
         
         response = client.chat.completions.create(
@@ -183,7 +182,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         return response.choices[0].message.content, None
     except Exception as e: return None, f"Erro OpenAI: {str(e)}."
 
-# --- 5. PDF (LAYOUT E FORMATADOR AVANÇADO) ---
+# --- 5. PDF (FORMATADOR INTELIGENTE) ---
 class PDF_V3(FPDF):
     def header(self):
         self.set_draw_color(0, 78, 146); self.set_line_width(0.4)
@@ -238,15 +237,14 @@ def gerar_pdf(dados, tem_anexo):
     pdf.ln(2)
     pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Família:", 0, 0); pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 6, dados['composicao_familiar'])
 
-    # 2. Evidências (Sem interrogações)
+    # 2. Evidências
     evidencias = [k.replace('?', '') for k, v in dados['checklist_evidencias'].items() if v]
     if evidencias:
         pdf.section_title("2. PONTOS DE ATENÇÃO (EVIDÊNCIAS OBSERVADAS)")
         pdf.set_font("Arial", size=10)
         pdf.multi_cell(0, 6, limpar_texto_pdf('; '.join(evidencias) + '.'))
 
-    # 3. Mapeamento de Barreiras (NOVA SEÇÃO AUTOMÁTICA)
-    # Lista explícita do que foi marcado nos sliders para não perder informação
+    # 3. Mapeamento
     tem_barreiras = any(dados['barreiras_selecionadas'].values())
     if tem_barreiras:
         pdf.section_title("3. MAPEAMENTO DE BARREIRAS E NÍVEIS DE SUPORTE")
@@ -258,13 +256,16 @@ def gerar_pdf(dados, tem_anexo):
                 pdf.set_font("Arial", size=10)
                 for item in itens:
                     nivel = dados['niveis_suporte'].get(f"{categoria}_{item}", "Monitorado")
-                    # Desenha item com nível
                     pdf.cell(5); pdf.cell(0, 6, f"- {item}: Suporte {nivel}", 0, 1)
                 pdf.ln(2)
 
-    # 4. Relatório IA (Formatador de Títulos e Subtítulos)
+    # 4. Relatório IA
     if dados['ia_sugestao']:
         pdf.ln(5)
+        # FORÇA COR E FONTE PARA EVITAR FORMATACAO ERRADA
+        pdf.set_text_color(0) 
+        pdf.set_font("Arial", '', 10)
+        
         linhas = dados['ia_sugestao'].split('\n')
         for linha in linhas:
             linha_limpa = limpar_texto_pdf(linha)
@@ -277,7 +278,7 @@ def gerar_pdf(dados, tem_anexo):
                 pdf.cell(0, 8, f"  {linha_limpa}", 0, 1, 'L', fill=True)
                 pdf.set_text_color(0) 
                 pdf.set_font("Arial", size=10)
-            # Subtítulos (Termina em :) ou linhas curtas de destaque
+            # Subtítulos (Termina em :) ou linhas curtas
             elif linha_limpa.strip().endswith(':') and len(linha_limpa) < 70:
                 pdf.ln(2)
                 pdf.set_font("Arial", 'B', 10)
@@ -529,4 +530,4 @@ with tab7:
     else: st.warning("Gere o plano na aba Consultoria IA primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v5.1 | Clarity & Integrity Edition</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v5.2 | Perfect Print Edition</div>", unsafe_allow_html=True)
