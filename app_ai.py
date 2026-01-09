@@ -47,10 +47,9 @@ def ler_pdf(arquivo):
 
 def limpar_texto_pdf(texto):
     if not texto: return ""
-    # Limpeza profunda de caracteres que quebram o FPDF
     texto = texto.replace('**', '').replace('__', '')
     texto = texto.replace('### ', '').replace('## ', '').replace('# ', '')
-    texto = texto.replace('* ', '-') # Bullet point simples
+    texto = texto.replace('* ', '-') 
     texto = texto.replace('–', '-').replace('—', '-')
     texto = texto.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
     texto = re.sub(r'[^\x00-\xff]', '', texto) 
@@ -108,7 +107,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. IA (PROMPT PEDAGÓGICO) ---
+# --- 4. IA (PROMPT COM BNCC EXPANDIDA E SEPARADA) ---
 def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
     if not api_key: return None, "⚠️ Configure a Chave API OpenAI na barra lateral."
     
@@ -116,7 +115,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         client = OpenAI(api_key=api_key)
         contexto_seguro = contexto_pdf[:5000] if contexto_pdf else "Sem laudo anexado."
         
-        # Limpa interrogações das evidências para evitar confusão visual
+        # Limpa interrogações
         evidencias_texto = "\n".join([f"- {k.replace('?', '')}" for k, v in dados['checklist_evidencias'].items() if v])
         
         meds_texto = ""
@@ -125,6 +124,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
                 meds_texto += f"- {m['nome']} ({m['posologia']}). Admin na escola: {'SIM' if m['escola'] else 'NÃO'}.\n"
         else: meds_texto = "Nenhuma medicação informada."
 
+        # Prepara texto do mapeamento para a IA ler
         mapeamento_texto = ""
         for categoria, itens in dados['barreiras_selecionadas'].items():
             if itens:
@@ -137,20 +137,19 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
 
         prompt_sistema = """
         Você é um Neuropsicopedagogo Sênior.
-        Sua missão é construir um PEI (Plano de Ensino Individualizado) centrado no estudante.
+        Sua missão é construir um PEI (Plano de Ensino Individualizado) completo e detalhado.
         
-        ESTRUTURA OBRIGATÓRIA PARA FORMATAÇÃO DO PDF:
-        Para garantir que o documento final fique bem formatado, use EXATAMENTE a numeração abaixo e escreva os TÍTULOS EM CAIXA ALTA.
-        
+        ESTRUTURA OBRIGATÓRIA (TÍTULOS EM CAIXA ALTA E NUMERADOS):
         1. PERFIL BIOPSICOSSOCIAL DO ESTUDANTE
-        2. PLANEJAMENTO CURRICULAR E BNCC
+        2. PLANEJAMENTO CURRICULAR E BNCC (Crucial: Liste múltiplas habilidades)
         3. DIRETRIZES PRÁTICAS PARA ADAPTAÇÃO
         4. PLANO DE INTERVENÇÃO E ESTRATÉGIAS
         5. PARECER FINAL E RECOMENDAÇÕES
         
         DIRETRIZES:
-        - O texto deve ser fluido e técnico.
-        - Não use símbolos complexos que possam quebrar a formatação.
+        - No ponto 1, narre a história do aluno de forma humanizada.
+        - No ponto 2, seja GENEROSO: Liste as Habilidades Essenciais da série atual E as Habilidades de Recomposição (anos anteriores) necessárias para suprir defasagens. Use sub-títulos claros (ex: "Habilidades do Ano:", "Recomposição:").
+        - No ponto 3, dê exemplos claros de adaptação baseados no Hiperfoco.
         """
 
         prompt_usuario = f"""
@@ -163,7 +162,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         Família: {dados['familia']}
         
         EVIDÊNCIAS DE SALA: {evidencias_texto}
-        BARREIRAS: {mapeamento_texto}
+        BARREIRAS MAPEADAS: {mapeamento_texto}
         POTENCIALIDADES: Hiperfoco: {dados['hiperfoco']} | Fortes: {', '.join(dados['potencias'])}
         
         ESTRATÉGIAS: 
@@ -173,7 +172,7 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         
         LAUDO: {contexto_seguro}
         
-        GERE O RELATÓRIO TÉCNICO SEGUINDO A ESTRUTURA NUMERADA (1. a 5.).
+        GERE O RELATÓRIO TÉCNICO. Garanta que o tópico 2 (BNCC) seja rico e detalhe habilidades do ano e de anos anteriores.
         """
         
         response = client.chat.completions.create(
@@ -184,17 +183,16 @@ def consultar_gpt_v4(api_key, dados, contexto_pdf=""):
         return response.choices[0].message.content, None
     except Exception as e: return None, f"Erro OpenAI: {str(e)}."
 
-# --- 5. PDF (LÓGICA AJUSTADA E LOGO AMPLIADA) ---
+# --- 5. PDF (LAYOUT E FORMATADOR AVANÇADO) ---
 class PDF_V3(FPDF):
     def header(self):
         self.set_draw_color(0, 78, 146); self.set_line_width(0.4)
         self.rect(5, 5, 200, 287)
         
         logo = finding_logo()
-        # LOGO AUMENTADA PARA 30 DE LARGURA PARA FICAR PROPORCIONAL
         if logo: 
-            self.image(logo, 10, 10, 30) # Aumentado de 22 para 30
-            x_offset = 45 # Ajustado offset do texto
+            self.image(logo, 10, 10, 30)
+            x_offset = 45 
         else: 
             x_offset = 12
         
@@ -240,31 +238,52 @@ def gerar_pdf(dados, tem_anexo):
     pdf.ln(2)
     pdf.set_font("Arial", 'B', 10); pdf.cell(40, 6, "Família:", 0, 0); pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 6, dados['composicao_familiar'])
 
-    # 2. Evidências (Limpa ?)
+    # 2. Evidências (Sem interrogações)
     evidencias = [k.replace('?', '') for k, v in dados['checklist_evidencias'].items() if v]
     if evidencias:
         pdf.section_title("2. PONTOS DE ATENÇÃO (EVIDÊNCIAS OBSERVADAS)")
         pdf.set_font("Arial", size=10)
         pdf.multi_cell(0, 6, limpar_texto_pdf('; '.join(evidencias) + '.'))
 
-    # 3. Relatório IA (Lógica Anti-Erro de Formatação)
+    # 3. Mapeamento de Barreiras (NOVA SEÇÃO AUTOMÁTICA)
+    # Lista explícita do que foi marcado nos sliders para não perder informação
+    tem_barreiras = any(dados['barreiras_selecionadas'].values())
+    if tem_barreiras:
+        pdf.section_title("3. MAPEAMENTO DE BARREIRAS E NÍVEIS DE SUPORTE")
+        pdf.set_font("Arial", size=10)
+        for categoria, itens in dados['barreiras_selecionadas'].items():
+            if itens:
+                pdf.set_font("Arial", 'B', 10)
+                pdf.cell(0, 6, f"{categoria}:", 0, 1)
+                pdf.set_font("Arial", size=10)
+                for item in itens:
+                    nivel = dados['niveis_suporte'].get(f"{categoria}_{item}", "Monitorado")
+                    # Desenha item com nível
+                    pdf.cell(5); pdf.cell(0, 6, f"- {item}: Suporte {nivel}", 0, 1)
+                pdf.ln(2)
+
+    # 4. Relatório IA (Formatador de Títulos e Subtítulos)
     if dados['ia_sugestao']:
         pdf.ln(5)
         linhas = dados['ia_sugestao'].split('\n')
         for linha in linhas:
             linha_limpa = limpar_texto_pdf(linha)
-            # REGRA RIGOROSA: Só é título se começar com número E for CAIXA ALTA (ex: 1. PERFIL...)
-            # Isso impede que "1. O aluno..." vire título azul.
-            is_titulo = re.match(r'^[1-5]\.', linha_limpa.strip()) and linha_limpa.strip().isupper()
-            
-            if is_titulo:
+            # Título Principal (1. TÍTULO)
+            if re.match(r'^[1-5]\.', linha_limpa.strip()) and linha_limpa.strip().isupper():
                 pdf.ln(4)
                 pdf.set_fill_color(240, 248, 255)
                 pdf.set_text_color(0, 78, 146)
                 pdf.set_font('Arial', 'B', 11)
                 pdf.cell(0, 8, f"  {linha_limpa}", 0, 1, 'L', fill=True)
-                pdf.set_text_color(0) # Reset cor
-                pdf.set_font("Arial", size=10) # Reset fonte
+                pdf.set_text_color(0) 
+                pdf.set_font("Arial", size=10)
+            # Subtítulos (Termina em :) ou linhas curtas de destaque
+            elif linha_limpa.strip().endswith(':') and len(linha_limpa) < 70:
+                pdf.ln(2)
+                pdf.set_font("Arial", 'B', 10)
+                pdf.multi_cell(0, 6, linha_limpa)
+                pdf.set_font("Arial", size=10)
+            # Texto comum
             else:
                 pdf.multi_cell(0, 6, linha_limpa)
         
@@ -289,7 +308,7 @@ default_state = {
     'composicao_familiar': '', 'historico': '', 'familia': '', 'hiperfoco': '', 'potencias': [],
     'rede_apoio': [], 'orientacoes_especialistas': '',
     'checklist_evidencias': {}, 
-    'barreiras_selecionadas': {'Cognitivo': [], 'Comunicacional': [], 'Socioemocional': [], 'Motora': [], 'Acadêmico': []},
+    'barreiras_selecionadas': {'Cognitivo': [], 'Comunicacional': [], 'Socioemocional': [], 'Sensorial/Motor': [], 'Acadêmico': []},
     'niveis_suporte': {}, 
     'estrategias_acesso': [], 'estrategias_ensino': [], 'estrategias_avaliacao': [], 'ia_sugestao': ''
 }
@@ -510,4 +529,4 @@ with tab7:
     else: st.warning("Gere o plano na aba Consultoria IA primeiro.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v5.0 | Final Refined Edition</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #A0AEC0; font-size: 0.8rem;'>PEI 360º v5.1 | Clarity & Integrity Edition</div>", unsafe_allow_html=True)
